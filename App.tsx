@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar, useColorScheme } from 'react-native';
-import { useAuth } from './src/hooks/useAuth';
+import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import AuthStack from './src/navigation/AuthStack';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -12,6 +12,11 @@ const queryClient = new QueryClient();
 function Root() {
   const { isAuthenticated } = useAuth();
   const isDarkMode = useColorScheme() === 'dark';
+
+  if (isAuthenticated === null) {
+    // Splash / loading state while checking token
+    return null;
+  }
 
   return (
     <SafeAreaProvider>
@@ -26,7 +31,9 @@ function Root() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Root />
+      <AuthProvider>
+        <Root />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
