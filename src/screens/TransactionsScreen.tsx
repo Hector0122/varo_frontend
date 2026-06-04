@@ -15,6 +15,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { api } from '../services/api';
 import TransactionItem from '../components/TransactionItem';
+import LoadingScreen from '../components/LoadingScreen';
+import ErrorMessage from '../components/ErrorMessage';
 import type { Transaction } from '../types';
 
 interface TransactionForm {
@@ -29,7 +31,7 @@ export default function TransactionsScreen() {
   const queryClient = useQueryClient();
   const [modalVisible, setModalVisible] = useState(false);
 
-  const { data: transactions, isLoading } = useQuery<Transaction[]>({
+  const { data: transactions, isLoading, isError, refetch } = useQuery<Transaction[]>({
     queryKey: ['transactions'],
     queryFn: async () => {
       const res = await api.get('/transactions');
@@ -86,10 +88,15 @@ export default function TransactionsScreen() {
   };
 
   if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (isError) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
+      <ErrorMessage
+        message="No se pudieron cargar los movimientos."
+        onRetry={refetch}
+      />
     );
   }
 
@@ -110,10 +117,18 @@ export default function TransactionsScreen() {
             <TransactionItem transaction={item} />
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No hay movimientos</Text>}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>📋</Text>
+            <Text style={styles.emptyTitle}>Sin movimientos</Text>
+            <Text style={styles.emptyText}>Registra tu primer ingreso o gasto.</Text>
+          </View>
+        }
       />
 
-      <Button title="+ Nuevo movimiento" onPress={() => setModalVisible(true)} />
+      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -208,10 +223,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  empty: {
-    textAlign: 'center',
+  emptyContainer: {
+    alignItems: 'center',
+    marginTop: 48,
+  },
+  emptyEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 4,
+  },
+  emptyText: {
+    fontSize: 14,
     color: '#888',
-    marginTop: 24,
+    textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#2e7d32',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
   },
   modalOverlay: {
     flex: 1,

@@ -24,8 +24,10 @@ export interface Goal {
 
 export interface Forecast {
   goalId: string;
+  goalName: string;
   remainingAmount: number;
   avgMonthlySaving: number;
+  monthlyNeeded: number;
   estimatedDays: number;
   estimatedDate: string;
   trend: 'up' | 'stable' | 'down';

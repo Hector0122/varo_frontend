@@ -86,7 +86,7 @@ export default function GoalDetailScreen() {
         <ActivityIndicator style={{ marginVertical: 16 }} />
       ) : forecast ? (
         <>
-          <ForecastWidget forecast={forecast} />
+          <ForecastWidget forecast={forecast} goal={goal} />
           <View style={styles.trendRow}>
             <Text style={styles.label}>Tendencia:</Text>
             <TrendBadge trend={forecast.trend} />

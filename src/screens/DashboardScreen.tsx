@@ -1,14 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import SummaryCard from '../components/SummaryCard';
 import GoalCard from '../components/GoalCard';
 import ForecastWidget from '../components/ForecastWidget';
+import LoadingScreen from '../components/LoadingScreen';
+import ErrorMessage from '../components/ErrorMessage';
 import type { Transaction, Goal, Forecast } from '../types';
 
 export default function DashboardScreen() {
-  const { data: transactions, isLoading: txLoading } = useQuery<Transaction[]>({
+  const { data: transactions, isLoading: txLoading, isError: txError, refetch: txRefetch } = useQuery<Transaction[]>({
     queryKey: ['transactions'],
     queryFn: async () => {
       const res = await api.get('/transactions');
@@ -16,7 +18,7 @@ export default function DashboardScreen() {
     },
   });
 
-  const { data: goals, isLoading: goalsLoading } = useQuery<Goal[]>({
+  const { data: goals, isLoading: goalsLoading, isError: goalsError, refetch: goalsRefetch } = useQuery<Goal[]>({
     queryKey: ['goals'],
     queryFn: async () => {
       const res = await api.get('/goals');
@@ -41,10 +43,18 @@ export default function DashboardScreen() {
   const netSaving = totalIncome - totalExpense;
 
   if (txLoading || goalsLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (txError || goalsError) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
+      <ErrorMessage
+        message="No se pudieron cargar los datos del dashboard."
+        onRetry={() => {
+          txRefetch();
+          goalsRefetch();
+        }}
+      />
     );
   }
 
@@ -64,15 +74,19 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Meta principal</Text>
           <GoalCard goal={mainGoal} />
           {forecastLoading ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} />
+            <LoadingScreen />
           ) : forecast ? (
-            <ForecastWidget forecast={forecast} />
+            <ForecastWidget forecast={forecast} goal={mainGoal} />
           ) : null}
         </>
       )}
 
       {!mainGoal && (
-        <Text style={styles.empty}>Crea tu primera meta para ver el forecast.</Text>
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyEmoji}>🎯</Text>
+          <Text style={styles.emptyTitle}>Sin metas activas</Text>
+          <Text style={styles.emptyText}>Crea tu primera meta para ver el forecast.</Text>
+        </View>
       )}
     </ScrollView>
   );
@@ -110,5 +124,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#888',
     marginTop: 24,
+  },
+  emptyCard: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  emptyEmoji: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 4,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
   },
 });

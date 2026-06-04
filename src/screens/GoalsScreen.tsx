@@ -17,6 +17,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { api } from '../services/api';
 import GoalCard from '../components/GoalCard';
+import LoadingScreen from '../components/LoadingScreen';
+import ErrorMessage from '../components/ErrorMessage';
 import type { Goal } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
