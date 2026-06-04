@@ -6,6 +6,7 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
+    "prestart": "node scripts/generate-config.js",
     "start": "react-native start",
     "test": "jest"
   },
@@ -20,7 +21,6 @@
     "react": "19.2.3",
     "react-hook-form": "^7.77.0",
     "react-native": "0.85.3",
-    "react-native-dotenv": "^3.4.11",
     "react-native-gesture-handler": "^3.0.0",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.25.2",
