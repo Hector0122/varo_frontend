@@ -1,98 +1,81 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Varo Frontend
 
-# Getting Started
+Aplicación móvil de seguimiento financiero personal. Construida con React Native.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Stack
 
-## Step 1: Start Metro
+| Capa | Tecnología | Versión |
+|------|-----------|---------|
+| Framework | React Native | 0.85.3 |
+| Navegación | React Navigation (Native Stack + Bottom Tabs) | 7.x |
+| Estado Server | TanStack Query | 5.x |
+| Formularios | React Hook Form | 7.x |
+| HTTP | Axios | 1.x |
+| Auth | AsyncStorage + JWT interceptors | - |
+| Theming | React Context + useColorScheme | - |
+| Image Picker | react-native-image-picker | - |
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Características
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- **Autenticación** — Login, registro, refresh token automático
+- **Dashboard** — Resumen de ingresos, gastos, ahorro neto, meta principal + forecast
+- **Movimientos** — Lista, crear, editar, eliminar
+- **Scan de tickets** — Usa Groq Vision para extraer datos de tickets/comprobantes
+- **Metas** — Crear, editar, eliminar, asignar porcentaje de ahorro
+- **Detalle de Meta** — Progreso, forecast widget, tendencia, agregar ahorro
+- **Categorías** — CRUD de categorías personalizadas
+- **Perfil** — Logout, toggle tema
+- **Theming** — Soporte light/dark mode con sistema de colores centralizado
 
-```sh
-# Using npm
+## Estructura
+
+```
+src/
+  components/      — Componentes reutilizables
+  screens/          — Pantallas de la app
+  navigation/       — Configuración de navegación
+  hooks/           — Custom hooks (useAuth)
+  services/        — API client, auth service
+  theme/           — ThemeContext, colors
+  types/           — TypeScript interfaces
+```
+
+## Configuración
+
+```bash
+# Variables de entorno (.env)
+API_BASE_URL=http://TU_IP:3000   # IP de tu máquina para dispositivo físico
+```
+
+El script `scripts/generate-config.js` lee `.env` y genera `src/config.ts` automáticamente.
+
+## Desarrollo
+
+```bash
+# Instalar dependencias
+npm install
+
+# Generar config desde .env
+node scripts/generate-config.js
+
+# Iniciar Metro
 npm start
 
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+# Android (emulador o dispositivo)
 npm run android
 
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
+# iOS (solo macOS)
+cd ios && bundle exec pod install && cd ..
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+## Notas Técnicas
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+- **No usar react-native-dotenv** — Problemas con Metro. Usar `scripts/generate-config.js` en su lugar.
+- **Auth state** — React Context (no hook local) para que el estado sea observable por todo el árbol.
+- **API interceptors** — JWT automático + refresh token en 401.
+- **Scan de tickets** — Requiere permisos de cámara/galería en AndroidManifest.xml
 
-## Step 3: Modify your app
+## Licencia
 
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
-# varo_frontend
+MIT
