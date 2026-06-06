@@ -23,6 +23,8 @@ export default function GoalWidget({ data }: Props) {
         paddingBottom: 12,
         backgroundColor: '#1a1a2e',
         borderRadius: 16,
+        width: 'match_parent',
+        height: 'match_parent',
       }}
     >
       <TextWidget
@@ -38,6 +40,7 @@ export default function GoalWidget({ data }: Props) {
         style={{
           flexDirection: 'row',
           alignItems: 'flex-end',
+          width: 'match_parent',
           marginTop: 8,
         }}
       >

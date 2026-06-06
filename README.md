@@ -14,18 +14,20 @@ Aplicación móvil de seguimiento financiero personal. Construida con React Nati
 | Auth | AsyncStorage + JWT interceptors | - |
 | Theming | React Context + useColorScheme | - |
 | Image Picker | react-native-image-picker | - |
+| Widget Android | react-native-android-widget | 0.20.3 |
 
 ## Características
 
 - **Autenticación** — Login, registro, refresh token automático
 - **Dashboard** — Resumen de ingresos, gastos, ahorro neto, meta principal + forecast
-- **Movimientos** — Lista, crear, editar, eliminar
+- **Movimientos** — Lista, crear, editar, eliminar, filtrar por tipo/categoría, ordenar por fecha/monto
 - **Scan de tickets** — Usa Groq Vision para extraer datos de tickets/comprobantes
 - **Metas** — Crear, editar, eliminar, asignar porcentaje de ahorro
-- **Detalle de Meta** — Progreso, forecast widget, tendencia, agregar ahorro
+- **Detalle de Meta** — Progreso, forecast widget, tendencia, agregar y retirar ahorro
 - **Categorías** — CRUD de categorías personalizadas
 - **Perfil** — Logout, toggle tema
 - **Theming** — Soporte light/dark mode con sistema de colores centralizado
+- **Widget Android** — Meta principal con días restantes en la pantalla de inicio, actualizado al abrir la app
 
 ## Estructura
 
@@ -38,6 +40,7 @@ src/
   services/        — API client, auth service
   theme/           — ThemeContext, colors
   types/           — TypeScript interfaces
+  widget/          — Componentes y handler para el widget Android
 ```
 
 ## Configuración
@@ -112,6 +115,7 @@ npm run ios
 - **Auth state** — React Context (no hook local) para que el estado sea observable por todo el árbol.
 - **API interceptors** — JWT automático + refresh token en 401.
 - **Scan de tickets** — Requiere permisos de cámara/galería en AndroidManifest.xml
+- **Widget Android** — Usa `react-native-android-widget` que renderiza JSX como imagen vía Skia. Los datos se persisten en AsyncStorage y se actualizan al abrir la app desde DashboardScreen. Requiere recompilar con `pnpm android` después de cambios en archivos nativos.
 
 ## Licencia
 
