@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requestWidgetUpdate } from 'react-native-android-widget';
 import { api } from '../services/api';
 import SummaryCard from '../components/SummaryCard';
 import GoalCard from '../components/GoalCard';
@@ -8,6 +10,7 @@ import ForecastWidget from '../components/ForecastWidget';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
+import GoalWidget, { type GoalWidgetData } from '../widget/GoalWidget';
 import type { Transaction, Goal, Forecast } from '../types';
 
 export default function DashboardScreen() {
@@ -39,6 +42,24 @@ export default function DashboardScreen() {
     },
     enabled: !!mainGoal,
   });
+
+  useEffect(() => {
+    if (mainGoal && forecast) {
+      const widgetData: GoalWidgetData = {
+        goalName: mainGoal.name,
+        estimatedDays: forecast.estimatedDays,
+        estimatedDate: new Date(forecast.estimatedDate).toLocaleDateString('es-MX', {
+          year: 'numeric',
+          month: 'long',
+        }),
+      };
+      AsyncStorage.setItem('GoalWidget:data', JSON.stringify(widgetData));
+      requestWidgetUpdate({
+        widgetName: 'GoalWidget',
+        renderWidget: () => <GoalWidget data={widgetData} />,
+      });
+    }
+  }, [mainGoal, forecast]);
 
   const totalIncome = transactions?.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;
   const totalExpense = transactions?.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;

@@ -57,10 +57,21 @@ export default function TransactionsScreen() {
   const [scanDate, setScanDate] = useState('');
   const [scanType, setScanType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
 
+  // Filtros y ordenamiento
+  const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
   const { data: transactions, isLoading, isError, refetch } = useQuery<Transaction[]>({
-    queryKey: ['transactions'],
+    queryKey: ['transactions', filterType, filterCategory, sortBy, sortOrder],
     queryFn: async () => {
-      const res = await api.get('/transactions');
+      const params: Record<string, string> = {};
+      if (filterType !== 'ALL') params.type = filterType;
+      if (filterCategory) params.category = filterCategory;
+      params.sortBy = sortBy;
+      params.sortOrder = sortOrder;
+      const res = await api.get('/transactions', { params });
       return res.data;
     },
   });
@@ -154,6 +165,14 @@ export default function TransactionsScreen() {
   const filteredTags = categories?.filter(
     (c) => c.type === selectedType || c.type === 'BOTH',
   );
+
+  const { data: allCategories } = useQuery<Category[]>({
+    queryKey: ['categories', 'all'],
+    queryFn: async () => {
+      const res = await api.get('/categories');
+      return res.data;
+    },
+  });
 
   const onSubmit = (data: TransactionForm) => {
     createMutation.mutate({
@@ -424,6 +443,94 @@ export default function TransactionsScreen() {
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <View style={styles.filterSection}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              {(['ALL', 'INCOME', 'EXPENSE'] as const).map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  style={[
+                    styles.filterChip,
+                    { borderColor: colors.border, backgroundColor: colors.bgSecondary },
+                    filterType === t && { backgroundColor: colors.green, borderColor: colors.green },
+                  ]}
+                  onPress={() => setFilterType(t)}
+                >
+                  <Text style={[{ color: colors.text }, filterType === t && { color: colors.bg, fontWeight: '600' }]}>
+                    {t === 'ALL' ? 'Todos' : t === 'INCOME' ? 'Ingresos' : 'Gastos'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.sortRow}>
+              <TouchableOpacity
+                style={styles.sortBtn}
+                onPress={() => {
+                  if (sortBy === 'date') {
+                    setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'));
+                  } else {
+                    setSortBy('date');
+                    setSortOrder('desc');
+                  }
+                }}
+              >
+                <Text style={[styles.sortBtnText, { color: colors.textSecondary }, sortBy === 'date' && { color: colors.green, fontWeight: '700' }]}>
+                  Fecha {sortBy === 'date' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.sortBtn}
+                onPress={() => {
+                  if (sortBy === 'amount') {
+                    setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'));
+                  } else {
+                    setSortBy('amount');
+                    setSortOrder('desc');
+                  }
+                }}
+              >
+                <Text style={[styles.sortBtnText, { color: colors.textSecondary }, sortBy === 'amount' && { color: colors.green, fontWeight: '700' }]}>
+                  Monto {sortBy === 'amount' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {allCategories && allCategories.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterChip,
+                    { borderColor: colors.border, backgroundColor: colors.bgSecondary },
+                    filterCategory === '' && { backgroundColor: colors.green, borderColor: colors.green },
+                  ]}
+                  onPress={() => setFilterCategory('')}
+                >
+                  <Text style={[{ color: colors.text }, filterCategory === '' && { color: colors.bg, fontWeight: '600' }]}>
+                    Todas
+                  </Text>
+                </TouchableOpacity>
+                {allCategories
+                  .filter((c) => filterType === 'ALL' || c.type === filterType || c.type === 'BOTH')
+                  .map((c) => (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[
+                        styles.filterChip,
+                        { borderColor: colors.border, backgroundColor: colors.bgSecondary },
+                        filterCategory === c.name && { backgroundColor: colors.green, borderColor: colors.green },
+                      ]}
+                      onPress={() => setFilterCategory((prev) => (prev === c.name ? '' : c.name))}
+                    >
+                      <Text style={[{ color: colors.text }, filterCategory === c.name && { color: colors.bg, fontWeight: '600' }]}>
+                        {c.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            )}
+          </View>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => showActionMenu(item)}>
             <TransactionItem transaction={item} />
@@ -749,5 +856,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
+  },
+  filterSection: {
+    marginBottom: 12,
+    gap: 10,
+  },
+  filterRow: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginVertical: 4,
+  },
+  sortBtn: {
+    paddingVertical: 4,
+  },
+  sortBtnText: {
+    fontSize: 14,
   },
 });

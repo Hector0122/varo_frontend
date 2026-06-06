@@ -35,6 +35,7 @@ export default function GoalDetailScreen() {
   });
 
   const [addAmount, setAddAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [allocInput, setAllocInput] = useState('');
   const [editingAlloc, setEditingAlloc] = useState(false);
 
@@ -51,6 +52,22 @@ export default function GoalDetailScreen() {
     },
     onError: (err: any) => {
       Alert.alert('Error', err.response?.data?.message || 'No se pudo actualizar');
+    },
+  });
+
+  const withdrawMutation = useMutation({
+    mutationFn: async (amount: number) => {
+      const res = await api.post(`/goals/${goalId}/withdraw-savings`, { amount });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
+      queryClient.invalidateQueries({ queryKey: ['forecast', goalId] });
+      setWithdrawAmount('');
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.response?.data?.message || 'No se pudo retirar');
     },
   });
 
@@ -73,6 +90,16 @@ export default function GoalDetailScreen() {
     const val = Number(addAmount);
     if (!val || val <= 0) return;
     updateMutation.mutate(val);
+  };
+
+  const handleWithdrawAmount = () => {
+    const val = Number(withdrawAmount);
+    if (!val || val <= 0) return;
+    if (goal && val > Number(goal.currentAmount)) {
+      Alert.alert('Error', 'No puedes retirar más de lo que hay ahorrado');
+      return;
+    }
+    withdrawMutation.mutate(val);
   };
 
   const handleSaveAlloc = () => {
@@ -156,6 +183,19 @@ export default function GoalDetailScreen() {
           onChangeText={setAddAmount}
         />
         <Button title="Agregar" onPress={handleAddAmount} disabled={updateMutation.isPending} />
+      </View>
+
+      <View style={[styles.addSection, { borderTopColor: colors.border }]}>
+        <Text style={[styles.addTitle, { color: colors.text }]}>Retirar ahorro</Text>
+        <TextInput
+          style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+          placeholderTextColor={colors.textMuted}
+          placeholder="Monto a retirar"
+          keyboardType="decimal-pad"
+          value={withdrawAmount}
+          onChangeText={setWithdrawAmount}
+        />
+        <Button title="Retirar" onPress={handleWithdrawAmount} disabled={withdrawMutation.isPending} color="#D32F2F" />
       </View>
     </ScrollView>
   );
