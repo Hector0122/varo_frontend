@@ -42,12 +42,49 @@ src/
 
 ## Configuración
 
+### 1. Crear archivo `.env`
+
+Copia `.env.example` a `.env` y ajusta la URL:
+
 ```bash
-# Variables de entorno (.env)
-API_BASE_URL=http://TU_IP:3000   # IP de tu máquina para dispositivo físico
+cp .env.example .env
 ```
 
-El script `scripts/generate-config.js` lee `.env` y genera `src/config.ts` automáticamente.
+```bash
+# .env
+# Para desarrollo local (emulador o mismo dispositivo)
+API_BASE_URL=http://localhost:3000
+
+# Para dispositivo físico (usa tu IP local)
+API_BASE_URL=http://192.168.1.100:3000
+
+# Para producción (Railway)
+API_BASE_URL=https://varobackend-production.up.railway.app
+```
+
+### 2. Generar `src/config.ts`
+
+```bash
+node scripts/generate-config.js
+```
+
+Esto genera `src/config.ts` desde `.env`. **No commitees `src/config.ts`** — ya está en `.gitignore`.
+
+### ⚠️ Nota de Seguridad
+
+En React Native, **no hay secretos verdaderos en el frontend**. Todo el bundle JS se envía al dispositivo y es visible si se descompila el APK/IPA.
+
+**Lo que NUNCA debe ir en el frontend:**
+- ❌ API keys de Groq o servicios de pago
+- ❌ Tokens de servicios de terceros
+- ❌ Contraseñas o claves de firma
+
+**Lo que SÍ puede ir en el frontend:**
+- ✅ `API_BASE_URL` (es pública, cualquiera puede ver a qué servidor habla la app)
+- ✅ Configuración de UI (colores, feature flags)
+- ✅ URLs públicas
+
+**En esta app, `API_BASE_URL` es la única variable de entorno.** La API key de Groq vive únicamente en el backend (`.env` del servidor), nunca aquí.
 
 ## Desarrollo
 

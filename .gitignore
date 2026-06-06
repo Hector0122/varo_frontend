@@ -68,6 +68,9 @@ yarn-error.log
 .env.*
 !.env.example
 
+# Generated config
+src/config.ts
+
 # testing
 /coverage
 
