@@ -1,13 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { register } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
-import type { AuthStackParamList } from '../navigation/AuthStack';
-
-type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
+import { useTheme } from '../theme/ThemeContext';
 
 interface RegisterForm {
   email: string;
@@ -15,7 +11,7 @@ interface RegisterForm {
 }
 
 export default function RegisterScreen() {
-  const navigation = useNavigation<RegisterScreenNavigationProp>();
+  const { colors } = useTheme();
   const { setAuth } = useAuth();
   const [loading, setLoading] = useState(false);
 
@@ -36,8 +32,8 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Crear cuenta</Text>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Crear cuenta</Text>
 
       <Controller
         control={control}
@@ -45,8 +41,9 @@ export default function RegisterScreen() {
         rules={{ required: 'El email es obligatorio' }}
         render={({ field: { onChange, value } }) => (
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: colors.border, color: colors.text }]}
             placeholder="Email"
+            placeholderTextColor={colors.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
             value={value}
@@ -61,8 +58,9 @@ export default function RegisterScreen() {
         rules={{ required: 'La contraseña es obligatoria', minLength: { value: 6, message: 'Mínimo 6 caracteres' } }}
         render={({ field: { onChange, value } }) => (
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: colors.border, color: colors.text }]}
             placeholder="Contraseña"
+            placeholderTextColor={colors.textMuted}
             secureTextEntry
             value={value}
             onChangeText={onChange}
@@ -80,7 +78,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
@@ -90,7 +87,6 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,

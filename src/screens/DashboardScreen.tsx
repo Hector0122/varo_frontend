@@ -7,9 +7,11 @@ import GoalCard from '../components/GoalCard';
 import ForecastWidget from '../components/ForecastWidget';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
+import { useTheme } from '../theme/ThemeContext';
 import type { Transaction, Goal, Forecast } from '../types';
 
 export default function DashboardScreen() {
+  const { colors } = useTheme();
   const { data: transactions, isLoading: txLoading, isError: txError, refetch: txRefetch } = useQuery<Transaction[]>({
     queryKey: ['transactions'],
     queryFn: async () => {
@@ -38,8 +40,8 @@ export default function DashboardScreen() {
     enabled: !!mainGoal,
   });
 
-  const totalIncome = transactions?.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0) ?? 0;
-  const totalExpense = transactions?.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0) ?? 0;
+  const totalIncome = transactions?.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;
+  const totalExpense = transactions?.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;
   const netSaving = totalIncome - totalExpense;
 
   if (txLoading || goalsLoading) {
@@ -59,19 +61,19 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.header}>Resumen</Text>
+    <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
+      <Text style={[styles.header, { color: colors.text }]}>Resumen</Text>
       <View style={styles.row}>
-        <SummaryCard title="Ingresos" amount={totalIncome} color="#2e7d32" />
-        <SummaryCard title="Gastos" amount={totalExpense} color="#c62828" />
+        <SummaryCard title="Ingresos" amount={totalIncome} color={colors.green} />
+        <SummaryCard title="Gastos" amount={totalExpense} color={colors.red} />
       </View>
       <View style={styles.row}>
-        <SummaryCard title="Ahorro neto" amount={netSaving} color={netSaving >= 0 ? '#2e7d32' : '#c62828'} />
+        <SummaryCard title="Ahorro neto" amount={netSaving} color={netSaving >= 0 ? colors.green : colors.red} />
       </View>
 
       {mainGoal && (
         <>
-          <Text style={styles.sectionTitle}>Meta principal</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Meta principal</Text>
           <GoalCard goal={mainGoal} />
           {forecastLoading ? (
             <LoadingScreen />
@@ -82,10 +84,10 @@ export default function DashboardScreen() {
       )}
 
       {!mainGoal && (
-        <View style={styles.emptyCard}>
+        <View style={[styles.emptyCard, { backgroundColor: colors.bgCard }]}>
           <Text style={styles.emptyEmoji}>🎯</Text>
-          <Text style={styles.emptyTitle}>Sin metas activas</Text>
-          <Text style={styles.emptyText}>Crea tu primera meta para ver el forecast.</Text>
+          <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Sin metas activas</Text>
+          <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Crea tu primera meta para ver el forecast.</Text>
         </View>
       )}
     </ScrollView>
@@ -95,7 +97,6 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   content: {
     padding: 16,
@@ -110,23 +111,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
   },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     marginTop: 24,
     marginBottom: 12,
   },
-  empty: {
-    textAlign: 'center',
-    color: '#888',
-    marginTop: 24,
+  row: {
+    flexDirection: 'row',
+    marginBottom: 12,
   },
   emptyCard: {
-    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
@@ -139,12 +134,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#555',
     marginBottom: 4,
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
     textAlign: 'center',
   },
 });

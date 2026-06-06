@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, Button, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, Button, Alert, TouchableOpacity } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { api } from '../services/api';
 import ForecastWidget from '../components/ForecastWidget';
 import TrendBadge from '../components/TrendBadge';
+import { useTheme } from '../theme/ThemeContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Goal, Forecast } from '../types';
 
 type GoalDetailRouteProp = RouteProp<RootStackParamList, 'GoalDetail'>;
 
 export default function GoalDetailScreen() {
+  const { colors } = useTheme();
   const route = useRoute<GoalDetailRouteProp>();
   const { goalId } = route.params;
   const queryClient = useQueryClient();
@@ -18,8 +20,8 @@ export default function GoalDetailScreen() {
   const { data: goal, isLoading: goalLoading } = useQuery<Goal>({
     queryKey: ['goal', goalId],
     queryFn: async () => {
-      const res = await api.get('/goals');
-      return res.data.find((g: Goal) => g.id === goalId);
+      const res = await api.get(`/goals/${goalId}`);
+      return res.data;
     },
   });
 
@@ -33,10 +35,12 @@ export default function GoalDetailScreen() {
   });
 
   const [addAmount, setAddAmount] = useState('');
+  const [allocInput, setAllocInput] = useState('');
+  const [editingAlloc, setEditingAlloc] = useState(false);
 
   const updateMutation = useMutation({
-    mutationFn: async (currentAmount: number) => {
-      const res = await api.patch(`/goals/${goalId}`, { currentAmount });
+    mutationFn: async (amount: number) => {
+      const res = await api.post(`/goals/${goalId}/add-savings`, { amount });
       return res.data;
     },
     onSuccess: () => {
@@ -50,11 +54,34 @@ export default function GoalDetailScreen() {
     },
   });
 
+  const allocMutation = useMutation({
+    mutationFn: async (savingAllocation: number) => {
+      const res = await api.patch(`/goals/${goalId}`, { savingAllocation });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
+      queryClient.invalidateQueries({ queryKey: ['forecast', goalId] });
+      setEditingAlloc(false);
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.response?.data?.message || 'No se pudo actualizar');
+    },
+  });
+
   const handleAddAmount = () => {
     const val = Number(addAmount);
     if (!val || val <= 0) return;
-    const newAmount = (goal?.currentAmount ?? 0) + val;
-    updateMutation.mutate(newAmount);
+    updateMutation.mutate(val);
+  };
+
+  const handleSaveAlloc = () => {
+    const val = Number(allocInput);
+    if (val < 0 || val > 100) {
+      Alert.alert('Error', 'El porcentaje debe estar entre 0 y 100');
+      return;
+    }
+    allocMutation.mutate(val);
   };
 
   if (goalLoading || !goal) {
@@ -65,41 +92,65 @@ export default function GoalDetailScreen() {
     );
   }
 
-  const progress = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
+  const progress = Number(goal.targetAmount) > 0 ? (Number(goal.currentAmount) / Number(goal.targetAmount)) * 100 : 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{goal.name}</Text>
+    <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
+      <Text style={[styles.title, { color: colors.text }]}>{goal.name}</Text>
 
       <View style={styles.progressContainer}>
-        <View style={styles.progressBarBackground}>
-          <View style={[styles.progressBarFill, { width: `${Math.min(progress, 100)}%` }]} />
+        <View style={[styles.progressBarBackground, { backgroundColor: colors.progressBg }]}>
+          <View style={[styles.progressBarFill, { backgroundColor: colors.green, width: `${Math.min(progress, 100)}%` }]} />
         </View>
-        <Text style={styles.progressText}>{Math.round(progress)}%</Text>
+        <Text style={[styles.progressText, { color: colors.green }]}>{Math.round(progress)}%</Text>
       </View>
 
-      <Text style={styles.amounts}>
-        ${goal.currentAmount.toLocaleString()} / ${goal.targetAmount.toLocaleString()}
+      <Text style={[styles.amounts, { color: colors.textSecondary }]}>
+        ${Number(goal.currentAmount).toLocaleString()} / ${Number(goal.targetAmount).toLocaleString()}
       </Text>
 
+      <View style={styles.allocRow}>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Asignación de ahorro:</Text>
+        {editingAlloc ? (
+          <View style={styles.allocEditRow}>
+            <TextInput
+              style={[styles.allocInput, { borderColor: colors.border, color: colors.text }]}
+              value={allocInput}
+              onChangeText={setAllocInput}
+              keyboardType="numeric"
+              placeholder={String(goal.savingAllocation)}
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={[styles.label, { color: colors.textSecondary }]}>%</Text>
+            <Button title="Guardar" onPress={handleSaveAlloc} />
+            <Button title="Cancelar" onPress={() => setEditingAlloc(false)} color={colors.textTertiary} />
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => { setAllocInput(String(goal.savingAllocation)); setEditingAlloc(true); }}>
+            <Text style={[styles.allocValue, { color: colors.green }]}>{goal.savingAllocation}%</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {forecastLoading ? (
-        <ActivityIndicator style={{ marginVertical: 16 }} />
+        <ActivityIndicator style={styles.forecastLoader} />
       ) : forecast ? (
         <>
           <ForecastWidget forecast={forecast} goal={goal} />
           <View style={styles.trendRow}>
-            <Text style={styles.label}>Tendencia:</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Tendencia:</Text>
             <TrendBadge trend={forecast.trend} />
           </View>
-          <Text style={styles.label}>Confianza: {Math.round(forecast.confidenceScore * 100)}%</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Confianza: {Math.round(forecast.confidenceScore * 100)}%</Text>
         </>
       ) : null}
 
-      <View style={styles.addSection}>
-        <Text style={styles.addTitle}>Agregar ahorro</Text>
+      <View style={[styles.addSection, { borderTopColor: colors.border }]}>
+        <Text style={[styles.addTitle, { color: colors.text }]}>Agregar ahorro</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Monto"
+          style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+          placeholderTextColor={colors.textMuted}
+          placeholder="Monto a agregar"
           keyboardType="decimal-pad"
           value={addAmount}
           onChangeText={setAddAmount}
@@ -113,7 +164,6 @@ export default function GoalDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   content: {
     padding: 16,
@@ -136,24 +186,42 @@ const styles = StyleSheet.create({
   progressBarBackground: {
     flex: 1,
     height: 12,
-    backgroundColor: '#e0e0e0',
     borderRadius: 6,
     marginRight: 12,
   },
   progressBarFill: {
     height: 12,
-    backgroundColor: '#2e7d32',
     borderRadius: 6,
   },
   progressText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2e7d32',
   },
   amounts: {
     fontSize: 16,
-    color: '#555',
     marginBottom: 16,
+  },
+  allocRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  allocEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  allocInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 6,
+    width: 60,
+    textAlign: 'center',
+  },
+  allocValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   trendRow: {
     flexDirection: 'row',
@@ -162,14 +230,15 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#666',
     marginRight: 8,
+  },
+  forecastLoader: {
+    marginVertical: 16,
   },
   addSection: {
     marginTop: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   addTitle: {
     fontSize: 16,
@@ -178,7 +247,6 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     padding: 10,
     marginBottom: 12,

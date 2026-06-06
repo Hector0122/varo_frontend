@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
 
 interface Props {
   message?: string;
@@ -7,12 +8,13 @@ interface Props {
 }
 
 export default function ErrorMessage({ message = 'Ocurrió un error al cargar los datos.', onRetry }: Props) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bgCard }]}>
       <Text style={styles.emoji}>⚠️</Text>
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[styles.message, { color: colors.text }]}>{message}</Text>
       {onRetry && (
-        <TouchableOpacity style={styles.retryBtn} onPress={onRetry}>
+        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.green }]} onPress={onRetry}>
           <Text style={styles.retryText}>Reintentar</Text>
         </TouchableOpacity>
       )}
@@ -26,7 +28,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#fff',
   },
   emoji: {
     fontSize: 48,
@@ -34,12 +35,10 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 16,
   },
   retryBtn: {
-    backgroundColor: '#2e7d32',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,

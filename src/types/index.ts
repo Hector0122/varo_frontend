@@ -19,6 +19,7 @@ export interface Goal {
   name: string;
   targetAmount: number;
   currentAmount: number;
+  savingAllocation: number;
   createdAt: string;
 }
 
@@ -32,6 +33,15 @@ export interface Forecast {
   estimatedDate: string;
   trend: 'up' | 'stable' | 'down';
   confidenceScore: number;
+  savingAllocation: number;
+  totalMonthlySaving: number;
+}
+
+export interface Category {
+  id: string;
+  userId: string;
+  name: string;
+  type: 'INCOME' | 'EXPENSE' | 'BOTH';
 }
 
 export interface AuthTokens {

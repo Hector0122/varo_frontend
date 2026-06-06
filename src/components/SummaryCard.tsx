@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
 
 interface Props {
   title: string;
@@ -7,11 +8,12 @@ interface Props {
   color?: string;
 }
 
-export default function SummaryCard({ title, amount, color = '#333' }: Props) {
+export default function SummaryCard({ title, amount, color }: Props) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={[styles.amount, { color }]}>
+    <View style={[styles.card, { backgroundColor: colors.bgCard }]}>
+      <Text style={[styles.title, { color: colors.textTertiary }]}>{title}</Text>
+      <Text style={[styles.amount, { color: color || colors.text }]}>
         ${amount.toLocaleString()}
       </Text>
     </View>
@@ -20,7 +22,6 @@ export default function SummaryCard({ title, amount, color = '#333' }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     padding: 16,
     flex: 1,
@@ -28,7 +29,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 12,
-    color: '#888',
     marginBottom: 4,
   },
   amount: {

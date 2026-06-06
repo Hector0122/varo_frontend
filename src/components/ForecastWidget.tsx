@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
 import type { Forecast, Goal } from '../types';
 
 interface Props {
@@ -8,64 +9,66 @@ interface Props {
 }
 
 export default function ForecastWidget({ forecast, goal }: Props) {
+  const { colors } = useTheme();
   const date = new Date(forecast.estimatedDate);
   const formattedDate = date.toLocaleDateString('es-MX', { year: 'numeric', month: 'long' });
 
-  // Progreso real: currentAmount / targetAmount
-  const safeProgress = Math.min(100, Math.max(0, (goal.currentAmount / Math.max(goal.targetAmount, 1)) * 100));
+  const goalCurrent = Number(goal.currentAmount);
+  const goalTarget = Number(goal.targetAmount);
+  const safeProgress = Math.min(100, Math.max(0, (goalCurrent / Math.max(goalTarget, 1)) * 100));
 
-  // Determinar color de estado según progreso y tendencia
-  let stateColor = '#f9a825'; // amarillo
+  let stateColor = '#f9a825';
   let stateLabel = 'En camino';
-  let stateSub = `${forecast.estimatedDays} días`;
 
   if (safeProgress > 50 && forecast.trend === 'up') {
-    stateColor = '#2e7d32'; // verde
+    stateColor = '#2e7d32';
     stateLabel = 'Vas bien';
   } else if (safeProgress < 25 || forecast.trend === 'down') {
-    stateColor = '#c62828'; // rojo
+    stateColor = '#c62828';
     stateLabel = 'Ajusta tu ritmo';
   }
 
   return (
-    <View style={[styles.container, { borderLeftColor: stateColor, borderLeftWidth: 4 }]}>
-      {/* Nombre de meta */}
-      <Text style={styles.goalName}>{forecast.goalName}</Text>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <Text style={[styles.goalName, { color: colors.text }]}>{forecast.goalName}</Text>
 
-      {/* Número grande: días restantes */}
       <View style={styles.countdownBox}>
-        <Text style={styles.countdownNumber}>{forecast.estimatedDays.toLocaleString()}</Text>
-        <Text style={styles.countdownLabel}>días</Text>
+        <Text style={[styles.countdownNumber, { color: colors.text }]}>{forecast.estimatedDays.toLocaleString()}</Text>
+        <Text style={[styles.countdownLabel, { color: colors.textSecondary }]}>días</Text>
       </View>
 
-      {/* Barra de progreso + porcentaje */}
       <View style={styles.progressRow}>
-        <View style={styles.progressBarBackground}>
-          <View style={[styles.progressBarFill, { width: `${safeProgress}%`, backgroundColor: stateColor }]} />
+        <View style={[styles.progressBarBackground, { backgroundColor: colors.progressBg }]}>
+          <View style={[styles.progressBarFill, styles.fillBar, { width: `${safeProgress}%`, backgroundColor: stateColor }]} />
         </View>
         <Text style={[styles.progressPercent, { color: stateColor }]}>{Math.round(safeProgress)}%</Text>
       </View>
 
-      {/* Montos */}
-      <Text style={styles.amounts}>
-        ${Math.round(goal.currentAmount).toLocaleString()} / ${Math.round(goal.targetAmount).toLocaleString()}
+      <Text style={[styles.amounts, { color: colors.textSecondary }]}>
+        ${Math.round(goalCurrent).toLocaleString()} / ${Math.round(goalTarget).toLocaleString()}
       </Text>
 
-      {/* Fecha estimada */}
       <View style={styles.infoRow}>
         <Text style={styles.infoIcon}>📅</Text>
-        <Text style={styles.infoText}>{formattedDate}</Text>
+        <Text style={[styles.infoText, { color: colors.textSecondary }]}>{formattedDate}</Text>
       </View>
 
-      {/* Ahorro mensual necesario */}
       <View style={styles.infoRow}>
         <Text style={styles.infoIcon}>💰</Text>
-        <Text style={styles.infoText}>
-          ${Math.round(forecast.monthlyNeeded).toLocaleString()} / mes necesarios
+        <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+          ${Math.round(forecast.monthlyNeeded).toLocaleString()} / mes
         </Text>
       </View>
 
-      {/* Badge de estado */}
+      {forecast.savingAllocation > 0 && forecast.savingAllocation < 100 && (
+        <View style={styles.infoRow}>
+          <Text style={styles.infoIcon}>📊</Text>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+            {forecast.savingAllocation}% de tu ahorro (${Math.round(forecast.totalMonthlySaving).toLocaleString()}/mes)
+          </Text>
+        </View>
+      )}
+
       <View style={[styles.stateBadge, { backgroundColor: stateColor }]}>
         <Text style={styles.stateBadgeText}>
           {stateLabel}, {forecast.estimatedDays} días
@@ -77,7 +80,6 @@ export default function ForecastWidget({ forecast, goal }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -92,7 +94,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 16,
-    color: '#333',
   },
   countdownBox: {
     alignItems: 'center',
@@ -101,12 +102,10 @@ const styles = StyleSheet.create({
   countdownNumber: {
     fontSize: 56,
     fontWeight: 'bold',
-    color: '#1b5e20',
     lineHeight: 60,
   },
   countdownLabel: {
     fontSize: 16,
-    color: '#666',
     marginTop: 4,
     textTransform: 'uppercase',
     letterSpacing: 2,
@@ -119,7 +118,6 @@ const styles = StyleSheet.create({
   progressBarBackground: {
     flex: 1,
     height: 10,
-    backgroundColor: '#e8e8e8',
     borderRadius: 5,
     marginRight: 12,
     overflow: 'hidden',
@@ -127,6 +125,9 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: 10,
     borderRadius: 5,
+  },
+  fillBar: {
+    borderLeftWidth: 0,
   },
   progressPercent: {
     fontSize: 16,
@@ -136,7 +137,6 @@ const styles = StyleSheet.create({
   },
   amounts: {
     fontSize: 14,
-    color: '#555',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -151,7 +151,6 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#555',
   },
   stateBadge: {
     alignSelf: 'center',

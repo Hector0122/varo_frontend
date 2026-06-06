@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
 import type { Transaction } from '../types';
 
 interface Props {
@@ -7,19 +8,20 @@ interface Props {
 }
 
 export default function TransactionItem({ transaction }: Props) {
+  const { colors } = useTheme();
   const isIncome = transaction.type === 'INCOME';
-  const color = isIncome ? '#2e7d32' : '#c62828';
+  const color = isIncome ? colors.green : colors.red;
   const sign = isIncome ? '+' : '-';
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
       <View style={styles.info}>
-        <Text style={styles.category}>{transaction.category}</Text>
-        <Text style={styles.note}>{transaction.note || ''}</Text>
-        <Text style={styles.date}>{new Date(transaction.date).toLocaleDateString()}</Text>
+        <Text style={[styles.category, { color: colors.text }]}>{transaction.category}</Text>
+        <Text style={[styles.note, { color: colors.textTertiary }]}>{transaction.note || ''}</Text>
+        <Text style={[styles.date, { color: colors.textMuted }]}>{new Date(transaction.date).toLocaleDateString()}</Text>
       </View>
       <Text style={[styles.amount, { color }]}>
-        {sign}${transaction.amount.toLocaleString()}
+        {sign}${Number(transaction.amount).toLocaleString()}
       </Text>
     </View>
   );
@@ -32,7 +34,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   info: {
     flex: 1,
@@ -43,12 +44,10 @@ const styles = StyleSheet.create({
   },
   note: {
     fontSize: 13,
-    color: '#888',
     marginTop: 2,
   },
   date: {
     fontSize: 12,
-    color: '#aaa',
     marginTop: 2,
   },
   amount: {
