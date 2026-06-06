@@ -50,6 +50,13 @@ export default function TransactionsScreen() {
   const [scannedData, setScannedData] = useState<ScannedReceipt | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
 
+  // Estados editables del preview de ticket escaneado
+  const [scanAmount, setScanAmount] = useState('');
+  const [scanCategory, setScanCategory] = useState('');
+  const [scanNote, setScanNote] = useState('');
+  const [scanDate, setScanDate] = useState('');
+  const [scanType, setScanType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
+
   const { data: transactions, isLoading, isError, refetch } = useQuery<Transaction[]>({
     queryKey: ['transactions'],
     queryFn: async () => {
@@ -187,9 +194,9 @@ export default function TransactionsScreen() {
     const options = {
       mediaType: 'photo' as const,
       includeBase64: true,
-      maxWidth: 1200,
-      maxHeight: 1200,
-      quality: 0.8 as const,
+      maxWidth: 600,
+      maxHeight: 600,
+      quality: 0.5 as const,
     };
 
     const launcher = fromCamera ? launchCamera : launchImageLibrary;
@@ -202,10 +209,26 @@ export default function TransactionsScreen() {
       const mimeType = response.assets[0].type || 'image/jpeg';
       const imageUri = `data:${mimeType};base64,${base64}`;
 
+      // Validar tamaño antes de consumir el tier gratuito de Groq
+      const sizeMB = imageUri.length / (1024 * 1024);
+      if (sizeMB > 1.5) {
+        Alert.alert(
+          'Imagen muy grande',
+          `La imagen pesa ${sizeMB.toFixed(1)}MB. Intenta sacarla más cercana al ticket o con menos resolución.`,
+        );
+        return;
+      }
+
       setScanLoading(true);
       try {
         const res = await api.post('/transactions/scan-receipt', { image: imageUri });
-        setScannedData(res.data);
+        const data = res.data as ScannedReceipt;
+        setScanAmount(String(data.amount ?? ''));
+        setScanCategory(data.category ?? '');
+        setScanNote(data.note ?? '');
+        setScanDate(data.date ?? new Date().toISOString().split('T')[0]);
+        setScanType(data.type ?? 'EXPENSE');
+        setScannedData(data);
         setScanModalVisible(true);
       } catch (err: any) {
         Alert.alert('Error', err.response?.data?.message || 'No se pudo procesar el ticket');
@@ -216,16 +239,24 @@ export default function TransactionsScreen() {
   };
 
   const confirmScanned = () => {
-    if (!scannedData) return;
+    if (!scanAmount || !scanCategory || !scanDate) {
+      Alert.alert('Faltan datos', 'Completa al menos el monto, categoría y fecha.');
+      return;
+    }
     createMutation.mutate({
-      amount: scannedData.amount,
-      category: scannedData.category,
-      note: scannedData.note || undefined,
-      type: scannedData.type,
-      date: new Date(scannedData.date).toISOString(),
+      amount: Number(scanAmount),
+      category: scanCategory,
+      note: scanNote || undefined,
+      type: scanType,
+      date: new Date(scanDate).toISOString(),
     });
     setScanModalVisible(false);
     setScannedData(null);
+    setScanAmount('');
+    setScanCategory('');
+    setScanNote('');
+    setScanDate('');
+    setScanType('EXPENSE');
   };
 
   const showActionMenu = (tx: Transaction) => {
@@ -470,26 +501,65 @@ export default function TransactionsScreen() {
         </View>
       </Modal>
 
-      {/* Scan Preview Modal */}
+      {/* Scan Preview Modal - EDITABLE */}
       <Modal visible={scanModalVisible} animationType="slide" transparent>
         <View style={[styles.modalOverlay, { backgroundColor: colors.bgModalOverlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.bg }]}>
+          <ScrollView style={[styles.modalContent, { backgroundColor: colors.bg }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Ticket detectado</Text>
-            {scannedData && (
-              <View style={styles.scanPreview}>
-                <Text style={[styles.scanLabel, { color: colors.textSecondary }]}>Monto</Text>
-                <Text style={[styles.scanValue, { color: colors.text }]}>${scannedData.amount}</Text>
 
-                <Text style={[styles.scanLabel, { color: colors.textSecondary }]}>Categoría</Text>
-                <Text style={[styles.scanValue, { color: colors.text }]}>{scannedData.category}</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Monto</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+              placeholder="Ej: 500"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="decimal-pad"
+              value={scanAmount}
+              onChangeText={setScanAmount}
+            />
 
-                <Text style={[styles.scanLabel, { color: colors.textSecondary }]}>Nota</Text>
-                <Text style={[styles.scanValue, { color: colors.text }]}>{scannedData.note || '-'}</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Categoría</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+              placeholder="Ej: Supermercado, Comida..."
+              placeholderTextColor={colors.textMuted}
+              value={scanCategory}
+              onChangeText={setScanCategory}
+            />
 
-                <Text style={[styles.scanLabel, { color: colors.textSecondary }]}>Fecha</Text>
-                <Text style={[styles.scanValue, { color: colors.text }]}>{scannedData.date}</Text>
-              </View>
-            )}
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Lugar / Establecimiento</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+              placeholder="Ej: Walmart, Starbucks..."
+              placeholderTextColor={colors.textMuted}
+              value={scanNote}
+              onChangeText={setScanNote}
+            />
+
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Fecha</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.textMuted}
+              value={scanDate}
+              onChangeText={setScanDate}
+            />
+
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Tipo</Text>
+            <View style={styles.typeRow}>
+              <TouchableOpacity
+                style={[styles.typeBtn, { borderColor: colors.border }, scanType === 'INCOME' && { backgroundColor: colors.greenLight, borderColor: colors.green }]}
+                onPress={() => setScanType('INCOME')}
+              >
+                <Text>💰 Ingreso</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeBtn, { borderColor: colors.border }, scanType === 'EXPENSE' && { backgroundColor: colors.greenLight, borderColor: colors.green }]}
+                onPress={() => setScanType('EXPENSE')}
+              >
+                <Text>💸 Gasto</Text>
+              </TouchableOpacity>
+            </View>
+
             <Button
               title={createMutation.isPending ? 'Guardando...' : '✅ Confirmar y guardar'}
               onPress={confirmScanned}
@@ -501,11 +571,16 @@ export default function TransactionsScreen() {
                 onPress={() => {
                   setScanModalVisible(false);
                   setScannedData(null);
+                  setScanAmount('');
+                  setScanCategory('');
+                  setScanNote('');
+                  setScanDate('');
+                  setScanType('EXPENSE');
                 }}
                 color={colors.textTertiary}
               />
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
