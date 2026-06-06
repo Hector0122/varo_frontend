@@ -14,10 +14,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = await AsyncStorage.getItem('accessToken');
-      setIsAuthenticated(!!token);
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        setIsAuthenticated(!!token);
+      } catch {
+        setIsAuthenticated(false);
+      }
     };
     checkAuth();
+
+    // Timeout de seguridad: si AsyncStorage se queda colgada, forzar false
+    const timeout = setTimeout(() => {
+      setIsAuthenticated((prev) => (prev === null ? false : prev));
+    }, 2000);
+
+    return () => clearTimeout(timeout);
   }, []);
 
   const setAuth = useCallback(async (access_token: string, refresh_token: string) => {
