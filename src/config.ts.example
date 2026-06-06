@@ -1,4 +1,0 @@
-// Auto-generated from .env by scripts/generate-config.js
-// Do not edit manually
-// Copy this file to config.ts and fill your API_BASE_URL
-export const API_BASE_URL: string = 'https://varobackend-production.up.railway.app';
