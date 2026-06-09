@@ -11,59 +11,100 @@ interface Props {
   data: GoalWidgetData;
 }
 
-const containerStyle = {
+const container = {
   flexDirection: 'column' as const,
-  justifyContent: 'center' as const,
   paddingLeft: 16,
   paddingRight: 16,
-  paddingTop: 12,
-  paddingBottom: 12,
-  backgroundColor: '#1a1a2e' as const,
-  borderRadius: 16,
+  paddingTop: 0,
+  paddingBottom: 16,
+  backgroundColor: '#0f0f23' as const,
+  borderRadius: 20,
   width: 'match_parent' as const,
   height: 'match_parent' as const,
+  overflow: 'hidden' as const,
 };
 
-const goalNameStyle = {
-  fontSize: 16,
+const accentBar = {
+  height: 4,
+  backgroundColor: '#f9a825' as const,
+  width: 'match_parent' as const,
+  marginBottom: 14,
+};
+
+const topRow = {
+  flexDirection: 'row' as const,
+  justifyContent: 'space-between' as const,
+  alignItems: 'center' as const,
+  width: 'match_parent' as const,
+};
+
+const goalName = {
+  fontSize: 15,
   fontWeight: '700' as const,
   color: '#ffffff' as const,
+  flex: 1,
 };
 
-const daysRowStyle = {
+const badge = {
+  fontSize: 11,
+  fontWeight: '600' as const,
+  color: '#0f0f23' as const,
+  backgroundColor: '#f9a825' as const,
+  paddingLeft: 8,
+  paddingRight: 8,
+  paddingTop: 3,
+  paddingBottom: 3,
+  borderRadius: 8,
+};
+
+const daysRow = {
   flexDirection: 'row' as const,
   alignItems: 'flex-end' as const,
-  width: 'match_parent' as const,
-  marginTop: 8,
+  marginTop: 12,
 };
 
-const daysNumberStyle = {
-  fontSize: 36,
+const daysNumber = {
+  fontSize: 44,
   fontWeight: 'bold' as const,
   color: '#f9a825' as const,
 };
 
-const daysLabelStyle = {
-  fontSize: 14,
-  color: '#a0a0a0' as const,
-  marginLeft: 4,
+const daysLabel = {
+  fontSize: 15,
+  color: '#8888aa' as const,
+  marginLeft: 6,
 };
 
-const dateStyle = {
+const dateText = {
   fontSize: 12,
-  color: '#a0a0a0' as const,
+  color: '#666688' as const,
   marginTop: 4,
 };
 
+const progressBg = {
+  height: 6,
+  backgroundColor: '#1e1e3a' as const,
+  borderRadius: 3,
+  width: 'match_parent' as const,
+  marginTop: 14,
+};
+
 export default function GoalWidget({ data }: Props) {
+  const days = data.estimatedDays;
+
   return (
-    <FlexWidget style={containerStyle}>
-      <TextWidget text={data.goalName} maxLines={1} style={goalNameStyle} />
-      <FlexWidget style={daysRowStyle}>
-        <TextWidget text={`${data.estimatedDays}`} style={daysNumberStyle} />
-        <TextWidget text=" días" style={daysLabelStyle} />
+    <FlexWidget style={container}>
+      <FlexWidget style={accentBar} />
+      <FlexWidget style={topRow}>
+        <TextWidget text={data.goalName} maxLines={1} style={goalName} />
+        <TextWidget text={`🎯`} style={badge} />
       </FlexWidget>
-      <TextWidget text={data.estimatedDate} style={dateStyle} />
+      <FlexWidget style={daysRow}>
+        <TextWidget text={`${days}`} style={daysNumber} />
+        <TextWidget text="días restantes" style={daysLabel} />
+      </FlexWidget>
+      <TextWidget text={data.estimatedDate} style={dateText} />
+      <FlexWidget style={progressBg} />
     </FlexWidget>
   );
 }
