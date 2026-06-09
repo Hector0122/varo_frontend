@@ -58,3 +58,21 @@ export interface RegisterPayload {
   email: string;
   password: string;
 }
+
+export interface Debt {
+  id: string;
+  userId: string;
+  name: string;
+  totalAmount: number;
+  currentAmount: number;
+  dueDate?: string | null;
+  createdAt: string;
+}
+
+export interface DebtPayment {
+  id: string;
+  debtId: string;
+  amount: number;
+  type: 'PAYMENT' | 'INCREASE';
+  createdAt: string;
+}

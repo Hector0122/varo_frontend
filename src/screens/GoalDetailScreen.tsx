@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Button, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { api } from '../services/api';
@@ -37,8 +37,8 @@ export default function GoalDetailScreen() {
     enabled: !!goalId,
   });
 
-  const [addAmount, setAddAmount] = useState('');
-  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [savingMode, setSavingMode] = useState<'add' | 'withdraw'>('add');
+  const [savingAmount, setSavingAmount] = useState('');
   const [allocInput, setAllocInput] = useState('');
   const [editingAlloc, setEditingAlloc] = useState(false);
 
@@ -51,7 +51,7 @@ export default function GoalDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
       queryClient.invalidateQueries({ queryKey: ['forecast', goalId] });
-      setAddAmount('');
+      setSavingAmount('');
       showToast('Ahorro agregado');
     },
     onError: (err: any) => {
@@ -68,7 +68,7 @@ export default function GoalDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
       queryClient.invalidateQueries({ queryKey: ['forecast', goalId] });
-      setWithdrawAmount('');
+      setSavingAmount('');
       showToast('Ahorro retirado');
     },
     onError: (err: any) => {
@@ -92,20 +92,18 @@ export default function GoalDetailScreen() {
     },
   });
 
-  const handleAddAmount = () => {
-    const val = Number(addAmount);
+  const handleSavingAction = () => {
+    const val = Number(savingAmount);
     if (!val || val <= 0) return;
-    updateMutation.mutate(val);
-  };
-
-  const handleWithdrawAmount = () => {
-    const val = Number(withdrawAmount);
-    if (!val || val <= 0) return;
-    if (goal && val > Number(goal.currentAmount)) {
-      Alert.alert('Error', 'No puedes retirar más de lo que hay ahorrado');
-      return;
+    if (savingMode === 'add') {
+      updateMutation.mutate(val);
+    } else {
+      if (goal && val > Number(goal.currentAmount)) {
+        Alert.alert('Error', 'No puedes retirar más de lo que hay ahorrado');
+        return;
+      }
+      withdrawMutation.mutate(val);
     }
-    withdrawMutation.mutate(val);
   };
 
   const handleSaveAlloc = () => {
@@ -151,8 +149,12 @@ export default function GoalDetailScreen() {
               placeholderTextColor={colors.textMuted}
             />
             <Text style={[styles.label, { color: colors.textSecondary }]}>%</Text>
-            <Button title="Guardar" onPress={handleSaveAlloc} />
-            <Button title="Cancelar" onPress={() => setEditingAlloc(false)} color={colors.textTertiary} />
+            <TouchableOpacity style={[styles.allocSmallBtn, { backgroundColor: colors.green }]} onPress={handleSaveAlloc}>
+              <Text style={styles.allocSmallBtnText}>Guardar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.allocSmallBtn, { backgroundColor: colors.textTertiary }]} onPress={() => setEditingAlloc(false)}>
+              <Text style={styles.allocSmallBtnText}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity onPress={() => { setAllocInput(String(goal.savingAllocation)); setEditingAlloc(true); }}>
@@ -177,29 +179,61 @@ export default function GoalDetailScreen() {
       ) : null}
 
       <View style={[styles.addSection, { borderTopColor: colors.border }]}>
-        <Text style={[styles.addTitle, { color: colors.text }]}>Agregar ahorro</Text>
+        <Text style={[styles.addTitle, { color: colors.text }]}>Ahorro</Text>
+        <View style={styles.modeRow}>
+          <TouchableOpacity
+            style={[
+              styles.modeBtn,
+              { borderColor: colors.border, backgroundColor: colors.bgSecondary },
+              savingMode === 'add' && { backgroundColor: colors.green, borderColor: colors.green },
+            ]}
+            onPress={() => setSavingMode('add')}
+          >
+            <Text style={[
+              styles.modeBtnText,
+              { color: colors.text },
+              savingMode === 'add' && { color: colors.bg },
+            ]}>Agregar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.modeBtn,
+              { borderColor: colors.border, backgroundColor: colors.bgSecondary },
+              savingMode === 'withdraw' && { backgroundColor: colors.red, borderColor: colors.red },
+            ]}
+            onPress={() => setSavingMode('withdraw')}
+          >
+            <Text style={[
+              styles.modeBtnText,
+              { color: colors.text },
+              savingMode === 'withdraw' && styles.textWhite,
+            ]}>Retirar</Text>
+          </TouchableOpacity>
+        </View>
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text }]}
           placeholderTextColor={colors.textMuted}
-          placeholder="Monto a agregar"
+          placeholder="Monto"
           keyboardType="decimal-pad"
-          value={addAmount}
-          onChangeText={setAddAmount}
+          value={savingAmount}
+          onChangeText={setSavingAmount}
         />
-        <Button title="Agregar" onPress={handleAddAmount} disabled={updateMutation.isPending} />
-      </View>
-
-      <View style={[styles.addSection, { borderTopColor: colors.border }]}>
-        <Text style={[styles.addTitle, { color: colors.text }]}>Retirar ahorro</Text>
-        <TextInput
-          style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-          placeholderTextColor={colors.textMuted}
-          placeholder="Monto a retirar"
-          keyboardType="decimal-pad"
-          value={withdrawAmount}
-          onChangeText={setWithdrawAmount}
-        />
-        <Button title="Retirar" onPress={handleWithdrawAmount} disabled={withdrawMutation.isPending} color="#D32F2F" />
+        <TouchableOpacity
+          style={[
+            styles.actionBtn,
+            { backgroundColor: savingMode === 'add' ? colors.green : colors.red },
+          ]}
+          onPress={handleSavingAction}
+          disabled={updateMutation.isPending || withdrawMutation.isPending}
+        >
+          <Text style={styles.actionBtnText}>
+            {updateMutation.isPending || withdrawMutation.isPending
+              ? 'Guardando...'
+              : savingMode === 'add'
+              ? 'Agregar ahorro'
+              : 'Retirar ahorro'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -289,5 +323,44 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 12,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  modeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  actionBtn: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  textWhite: {
+    color: '#fff',
+  },
+  allocSmallBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  allocSmallBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

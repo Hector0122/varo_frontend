@@ -8,6 +8,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import GoalDetailScreen from '../screens/GoalDetailScreen';
+import DebtDetailScreen from '../screens/DebtDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 
@@ -20,6 +21,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Goals: undefined;
   GoalDetail: { goalId: string };
+  DebtDetail: { debtId: string };
   Profile: undefined;
   Categories: undefined;
 };
@@ -103,6 +105,7 @@ export default function AppNavigator() {
       />
       <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: 'Metas' }} />
       <Stack.Screen name="GoalDetail" component={GoalDetailScreen} options={{ title: 'Detalle de Meta' }} />
+      <Stack.Screen name="DebtDetail" component={DebtDetailScreen} options={{ title: 'Detalle de Deuda' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
       <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: 'Categorías' }} />
     </Stack.Navigator>
