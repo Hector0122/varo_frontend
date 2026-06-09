@@ -1,11 +1,10 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import { api } from '../services/api';
 import SummaryCard from '../components/SummaryCard';
-import GoalCard from '../components/GoalCard';
 import ForecastWidget from '../components/ForecastWidget';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
@@ -15,6 +14,7 @@ import type { Transaction, Goal, Forecast } from '../types';
 
 export default function DashboardScreen() {
   const { colors } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
   const { data: transactions, isLoading: txLoading, isError: txError, refetch: txRefetch } = useQuery<Transaction[]>({
     queryKey: ['transactions'],
     queryFn: async () => {
@@ -65,6 +65,12 @@ export default function DashboardScreen() {
   const totalExpense = transactions?.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;
   const netSaving = totalIncome - totalExpense;
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([txRefetch(), goalsRefetch()]);
+    setRefreshing(false);
+  }, [txRefetch, goalsRefetch]);
+
   if (txLoading || goalsLoading) {
     return <LoadingScreen />;
   }
@@ -82,24 +88,28 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.bg }]}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
+        showsVerticalScrollIndicator={false}
+      >
       <Text style={[styles.header, { color: colors.text }]}>Resumen</Text>
       <View style={styles.row}>
-        <SummaryCard title="Ingresos" amount={totalIncome} color={colors.green} />
-        <SummaryCard title="Gastos" amount={totalExpense} color={colors.red} />
+        <SummaryCard title="Ingresos" amount={totalIncome} color={colors.green} icon="📈" compact />
+        <SummaryCard title="Gastos" amount={totalExpense} color={colors.red} icon="📉" compact />
       </View>
       <View style={styles.row}>
-        <SummaryCard title="Ahorro neto" amount={netSaving} color={netSaving >= 0 ? colors.green : colors.red} />
+        <SummaryCard title="Ahorro neto" amount={netSaving} color={netSaving >= 0 ? colors.green : colors.red} icon="💰" compact />
       </View>
 
       {mainGoal && (
         <>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Meta principal</Text>
-          <GoalCard goal={mainGoal} />
           {forecastLoading ? (
-            <LoadingScreen />
+            <View style={styles.forecastLoader}>
+              <ActivityIndicator size="small" color={colors.green} />
+            </View>
           ) : forecast ? (
-            <ForecastWidget forecast={forecast} goal={mainGoal} />
+            <ForecastWidget forecast={forecast} goal={mainGoal} compact />
           ) : null}
         </>
       )}
@@ -120,45 +130,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 12,
   },
   header: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 24,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   emptyCard: {
     borderRadius: 12,
-    padding: 24,
+    padding: 16,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 8,
   },
   emptyEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 24,
     marginBottom: 4,
   },
-  emptyText: {
+  emptyTitle: {
     fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  emptyText: {
+    fontSize: 12,
     textAlign: 'center',
+  },
+  forecastLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
   },
 });

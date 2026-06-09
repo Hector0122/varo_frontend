@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'react-native';
 import { AuthProvider, useAuth } from './src/hooks/useAuth';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
+import { ToastProvider } from './src/hooks/useToast';
 import AuthStack from './src/navigation/AuthStack';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -19,12 +20,12 @@ function Root() {
   }
 
   return (
-    <SafeAreaProvider>
+    <>
       <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       <NavigationContainer>
         {isAuthenticated ? <AppNavigator /> : <AuthStack />}
       </NavigationContainer>
-    </SafeAreaProvider>
+    </>
   );
 }
 
@@ -32,9 +33,13 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          <Root />
-        </AuthProvider>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <Root />
+            </ToastProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

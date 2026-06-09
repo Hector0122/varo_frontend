@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, Button, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Button, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { api } from '../services/api';
 import ForecastWidget from '../components/ForecastWidget';
 import TrendBadge from '../components/TrendBadge';
+import LoadingScreen from '../components/LoadingScreen';
 import { useTheme } from '../theme/ThemeContext';
+import { useToast } from '../hooks/useToast';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Goal, Forecast } from '../types';
 
@@ -16,6 +18,7 @@ export default function GoalDetailScreen() {
   const route = useRoute<GoalDetailRouteProp>();
   const { goalId } = route.params;
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const { data: goal, isLoading: goalLoading } = useQuery<Goal>({
     queryKey: ['goal', goalId],
@@ -49,6 +52,7 @@ export default function GoalDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
       queryClient.invalidateQueries({ queryKey: ['forecast', goalId] });
       setAddAmount('');
+      showToast('Ahorro agregado');
     },
     onError: (err: any) => {
       Alert.alert('Error', err.response?.data?.message || 'No se pudo actualizar');
@@ -65,6 +69,7 @@ export default function GoalDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
       queryClient.invalidateQueries({ queryKey: ['forecast', goalId] });
       setWithdrawAmount('');
+      showToast('Ahorro retirado');
     },
     onError: (err: any) => {
       Alert.alert('Error', err.response?.data?.message || 'No se pudo retirar');
@@ -80,6 +85,7 @@ export default function GoalDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
       queryClient.invalidateQueries({ queryKey: ['forecast', goalId] });
       setEditingAlloc(false);
+      showToast('Asignación actualizada');
     },
     onError: (err: any) => {
       Alert.alert('Error', err.response?.data?.message || 'No se pudo actualizar');
@@ -112,11 +118,7 @@ export default function GoalDetailScreen() {
   };
 
   if (goalLoading || !goal) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   const progress = Number(goal.targetAmount) > 0 ? (Number(goal.currentAmount) / Number(goal.targetAmount)) * 100 : 0;
@@ -160,7 +162,9 @@ export default function GoalDetailScreen() {
       </View>
 
       {forecastLoading ? (
-        <ActivityIndicator style={styles.forecastLoader} />
+        <View style={styles.forecastLoader}>
+          <ActivityIndicator size="large" color={colors.green} />
+        </View>
       ) : forecast ? (
         <>
           <ForecastWidget forecast={forecast} goal={goal} />
@@ -207,11 +211,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   title: {
     fontSize: 22,

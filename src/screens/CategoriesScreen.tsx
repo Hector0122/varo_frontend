@@ -9,10 +9,13 @@ import {
   StyleSheet,
   Alert,
   TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useTheme } from '../theme/ThemeContext';
+import { useToast } from '../hooks/useToast';
 import ErrorMessage from '../components/ErrorMessage';
 import LoadingScreen from '../components/LoadingScreen';
 import type { Category } from '../types';
@@ -20,6 +23,7 @@ import type { Category } from '../types';
 export default function CategoriesScreen() {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [modalVisible, setModalVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<'INCOME' | 'EXPENSE' | 'BOTH'>('EXPENSE');
@@ -41,6 +45,7 @@ export default function CategoriesScreen() {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setModalVisible(false);
       setNewName('');
+      showToast('Categoría creada');
     },
     onError: (err: any) => {
       Alert.alert('Error', err.response?.data?.message || 'No se pudo crear');
@@ -53,6 +58,7 @@ export default function CategoriesScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      showToast('Categoría eliminada');
     },
   });
 
@@ -118,9 +124,10 @@ export default function CategoriesScreen() {
       <Button title="+ Nueva categoría" onPress={() => setModalVisible(true)} />
 
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={[styles.modalOverlay, { backgroundColor: colors.bgModalOverlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.bg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva categoría</Text>
+        <KeyboardAvoidingView style={styles.flexFill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.modalOverlay, { backgroundColor: colors.bgModalOverlay }]}>
+            <View style={[styles.modalContent, { backgroundColor: colors.bg }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva categoría</Text>
 
             <Text style={[styles.label, { color: colors.textSecondary }]}>Nombre</Text>
             <TextInput
@@ -139,7 +146,7 @@ export default function CategoriesScreen() {
                   style={[styles.typeBtn, { borderColor: colors.border }, newType === t && { backgroundColor: colors.greenLight, borderColor: colors.green }]}
                   onPress={() => setNewType(t)}
                 >
-                  <Text style={[styles.typeText, { color: colors.textSecondary }, newType === t && { color: colors.green, fontWeight: '600' }]}>
+                  <Text style={[styles.typeText, { color: colors.textSecondary }, newType === t && { color: colors.green, ...styles.fontWeight600 }]}>
                     {typeLabels[t]}
                   </Text>
                 </TouchableOpacity>
@@ -157,8 +164,9 @@ export default function CategoriesScreen() {
             <View style={styles.cancelBtn}>
               <Button title="Cancelar" onPress={() => setModalVisible(false)} color={colors.textTertiary} />
             </View>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -238,5 +246,11 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     marginTop: 8,
+  },
+  fontWeight600: {
+    fontWeight: '600',
+  },
+  flexFill: {
+    flex: 1,
   },
 });

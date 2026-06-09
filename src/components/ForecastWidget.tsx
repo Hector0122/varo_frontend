@@ -6,9 +6,10 @@ import type { Forecast, Goal } from '../types';
 interface Props {
   forecast: Forecast;
   goal: Goal;
+  compact?: boolean;
 }
 
-export default function ForecastWidget({ forecast, goal }: Props) {
+export default function ForecastWidget({ forecast, goal, compact }: Props) {
   const { colors } = useTheme();
   const date = new Date(forecast.estimatedDate);
   const formattedDate = date.toLocaleDateString('es-MX', { year: 'numeric', month: 'long' });
@@ -17,15 +18,47 @@ export default function ForecastWidget({ forecast, goal }: Props) {
   const goalTarget = Number(goal.targetAmount);
   const safeProgress = Math.min(100, Math.max(0, (goalCurrent / Math.max(goalTarget, 1)) * 100));
 
-  let stateColor = '#f9a825';
+  let stateColor = colors.yellow;
   let stateLabel = 'En camino';
 
   if (safeProgress > 50 && forecast.trend === 'up') {
-    stateColor = '#2e7d32';
+    stateColor = colors.green;
     stateLabel = 'Vas bien';
   } else if (safeProgress < 25 || forecast.trend === 'down') {
-    stateColor = '#c62828';
+    stateColor = colors.red;
     stateLabel = 'Ajusta tu ritmo';
+  }
+
+  if (compact) {
+    return (
+      <View style={[styles.compactContainer, { backgroundColor: colors.bgCard }]}>
+        <View style={styles.compactTop}>
+          <View style={styles.compactInfo}>
+            <Text style={[styles.compactGoalName, { color: colors.text }]}>{forecast.goalName}</Text>
+            <Text style={[styles.compactAmounts, { color: colors.textSecondary }]}>
+              ${Math.round(goalCurrent).toLocaleString()} / ${Math.round(goalTarget).toLocaleString()}
+            </Text>
+            <View style={styles.compactProgressRow}>
+              <View style={[styles.compactProgressBg, { backgroundColor: colors.progressBg }]}>
+                <View style={[styles.compactProgressFill, { width: `${safeProgress}%`, backgroundColor: stateColor }]} />
+              </View>
+              <Text style={[styles.compactProgressPercent, { color: stateColor }]}>{Math.round(safeProgress)}%</Text>
+            </View>
+          </View>
+          <View style={styles.compactDaysBox}>
+            <Text style={[styles.compactDaysNumber, { color: colors.text }]}>{forecast.estimatedDays}</Text>
+            <Text style={[styles.compactDaysLabel, { color: colors.textSecondary }]}>días</Text>
+          </View>
+        </View>
+        <View style={styles.compactBottom}>
+          <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>📅 {formattedDate}</Text>
+          <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>💰 ${Math.round(forecast.monthlyNeeded).toLocaleString()}/mes</Text>
+          <View style={[styles.compactBadge, { backgroundColor: stateColor }]}>
+            <Text style={styles.compactBadgeText}>{stateLabel}</Text>
+          </View>
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -160,6 +193,87 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   stateBadgeText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  compactContainer: {
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  compactTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  compactGoalName: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  compactAmounts: {
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  compactProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  compactProgressBg: {
+    flex: 1,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  compactProgressFill: {
+    height: 10,
+    borderRadius: 5,
+  },
+  compactProgressPercent: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  compactDaysBox: {
+    alignItems: 'center',
+  },
+  compactDaysNumber: {
+    fontSize: 44,
+    fontWeight: 'bold',
+    lineHeight: 46,
+  },
+  compactDaysLabel: {
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  compactBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 16,
+  },
+  compactInfoText: {
+    fontSize: 14,
+  },
+  compactBadge: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    marginLeft: 'auto',
+  },
+  compactBadgeText: {
     color: '#fff',
     fontWeight: '600',
     fontSize: 13,

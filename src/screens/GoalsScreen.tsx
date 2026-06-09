@@ -8,8 +8,10 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,7 +19,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { api } from '../services/api';
 import GoalCard from '../components/GoalCard';
+import LoadingScreen from '../components/LoadingScreen';
 import { useTheme } from '../theme/ThemeContext';
+import { useToast } from '../hooks/useToast';
 import type { Goal } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -33,7 +37,9 @@ export default function GoalsScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<GoalsScreenNavigationProp>();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [modalVisible, setModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { data: goals, isLoading } = useQuery<Goal[]>({
     queryKey: ['goals'],
@@ -44,7 +50,11 @@ export default function GoalsScreen() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (payload: { name: string; targetAmount: number; savingAllocation: number }) => {
+    mutationFn: async (payload: {
+      name: string;
+      targetAmount: number;
+      savingAllocation: number;
+    }) => {
       const res = await api.post('/goals', payload);
       return res.data;
     },
@@ -52,9 +62,13 @@ export default function GoalsScreen() {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       setModalVisible(false);
       reset();
+      showToast('Meta creada');
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo crear la meta');
+      Alert.alert(
+        'Error',
+        err.response?.data?.message || 'No se pudo crear la meta',
+      );
     },
   });
 
@@ -65,6 +79,7 @@ export default function GoalsScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['forecast'] });
+      showToast('Meta eliminada');
     },
   });
 
@@ -81,101 +96,164 @@ export default function GoalsScreen() {
   };
 
   if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <FlatList
         data={goals}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await queryClient.invalidateQueries({ queryKey: ['goals'] });
+              setRefreshing(false);
+            }}
+            tintColor={colors.green}
+          />
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
-            onPress={() => navigation.navigate('GoalDetail', { goalId: item.id })}
+            onPress={() =>
+              navigation.navigate('GoalDetail', { goalId: item.id })
+            }
             onLongPress={() => {
               Alert.alert('Eliminar', '¿Eliminar esta meta?', [
                 { text: 'Cancelar', style: 'cancel' },
-                { text: 'Eliminar', style: 'destructive', onPress: () => deleteMutation.mutate(item.id) },
+                {
+                  text: 'Eliminar',
+                  style: 'destructive',
+                  onPress: () => deleteMutation.mutate(item.id),
+                },
               ]);
             }}
           >
             <GoalCard goal={item} />
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={[styles.empty, { color: colors.textTertiary }]}>No hay metas</Text>}
+        ListEmptyComponent={
+          <Text style={[styles.empty, { color: colors.textTertiary }]}>
+            No hay metas
+          </Text>
+        }
       />
 
       <Button title="+ Nueva meta" onPress={() => setModalVisible(true)} />
 
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={[styles.modalOverlay, { backgroundColor: colors.bgModalOverlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.bg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva meta</Text>
+        <KeyboardAvoidingView
+          style={styles.flexFill}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={[
+              styles.modalOverlay,
+              { backgroundColor: colors.bgModalOverlay },
+            ]}
+          >
+            <View style={[styles.modalContent, { backgroundColor: colors.bg }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Nueva meta
+              </Text>
 
-            <Controller
-              control={control}
-              name="name"
-              rules={{ required: true }}
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Nombre</Text>
-                  <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} placeholderTextColor={colors.textMuted} placeholder="Ej: Viaje a Europa" value={value} onChangeText={onChange} />
-                </>
-              )}
-            />
+              <Controller
+                control={control}
+                name="name"
+                rules={{ required: true }}
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text
+                      style={[styles.label, { color: colors.textSecondary }]}
+                    >
+                      Nombre
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        { borderColor: colors.border, color: colors.text },
+                      ]}
+                      placeholderTextColor={colors.textMuted}
+                      placeholder="Ej: Viaje a Europa"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </>
+                )}
+              />
 
-            <Controller
-              control={control}
-              name="targetAmount"
-              rules={{ required: true }}
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Monto objetivo</Text>
-                  <TextInput
-                    style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                    placeholderTextColor={colors.textMuted}
-                    placeholder="Ej: 50000"
-                    keyboardType="decimal-pad"
-                    value={value}
-                    onChangeText={onChange}
-                  />
-                </>
-              )}
-            />
+              <Controller
+                control={control}
+                name="targetAmount"
+                rules={{ required: true }}
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text
+                      style={[styles.label, { color: colors.textSecondary }]}
+                    >
+                      Monto objetivo
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        { borderColor: colors.border, color: colors.text },
+                      ]}
+                      placeholderTextColor={colors.textMuted}
+                      placeholder="Ej: 50000"
+                      keyboardType="decimal-pad"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </>
+                )}
+              />
 
-            <Controller
-              control={control}
-              name="savingAllocation"
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>% de tu ahorro para esta meta</Text>
-                  <TextInput
-                    style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                    placeholderTextColor={colors.textMuted}
-                    placeholder="100"
-                    keyboardType="numeric"
-                    value={value}
-                    onChangeText={onChange}
-                  />
-                  <Text style={[styles.hint, { color: colors.textTertiary }]}>Ej: 50% = destinas la mitad de tu ahorro mensual a esta meta</Text>
-                </>
-              )}
-            />
+              <Controller
+                control={control}
+                name="savingAllocation"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text
+                      style={[styles.label, { color: colors.textSecondary }]}
+                    >
+                      % de tu ahorro para esta meta
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        { borderColor: colors.border, color: colors.text },
+                      ]}
+                      placeholderTextColor={colors.textMuted}
+                      placeholder="100"
+                      keyboardType="numeric"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                    <Text style={[styles.hint, { color: colors.textTertiary }]}>
+                      Ej: 50% = destinas la mitad de tu ahorro mensual a esta
+                      meta
+                    </Text>
+                  </>
+                )}
+              />
 
-            <Button
-              title={createMutation.isPending ? 'Guardando...' : 'Guardar'}
-              onPress={handleSubmit(onSubmit)}
-              disabled={createMutation.isPending}
-            />
-            <View style={styles.cancelBtn}>
-              <Button title="Cancelar" onPress={() => setModalVisible(false)} color={colors.textTertiary} />
+              <Button
+                title={createMutation.isPending ? 'Guardando...' : 'Guardar'}
+                onPress={handleSubmit(onSubmit)}
+                disabled={createMutation.isPending}
+              />
+              <View style={styles.cancelBtn}>
+                <Button
+                  title="Cancelar"
+                  onPress={() => setModalVisible(false)}
+                  color={colors.textTertiary}
+                />
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -227,5 +305,8 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     marginTop: 8,
+  },
+  flexFill: {
+    flex: 1,
   },
 });

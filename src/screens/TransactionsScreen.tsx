@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Animated } from 'react-native';
 import {
   View,
   Text,
@@ -11,15 +12,20 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { api } from '../services/api';
 import TransactionItem from '../components/TransactionItem';
+import TransactionForm from '../components/TransactionForm';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
+import { useToast } from '../hooks/useToast';
 import type { Transaction, Category } from '../types';
 
 interface TransactionForm {
@@ -41,13 +47,17 @@ interface ScannedReceipt {
 export default function TransactionsScreen() {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [fabMenuVisible, setFabMenuVisible] = useState(false);
+  const fabAnim = useRef(new Animated.Value(0)).current;
+  const fabRotate = useRef(new Animated.Value(0)).current;
   const [showCategoryInput, setShowCategoryInput] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [scannedData, setScannedData] = useState<ScannedReceipt | null>(null);
+  const [editingTransaction, setEditingTransaction] =
+    useState<Transaction | null>(null);
+  // scanned data uses individual state vars below
   const [scanLoading, setScanLoading] = useState(false);
 
   // Estados editables del preview de ticket escaneado
@@ -58,12 +68,20 @@ export default function TransactionsScreen() {
   const [scanType, setScanType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
 
   // Filtros y ordenamiento
-  const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
+  const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>(
+    'ALL',
+  );
   const [filterCategory, setFilterCategory] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const { data: transactions, isLoading, isError, refetch } = useQuery<Transaction[]>({
+  const [refreshing, setRefreshing] = useState(false);
+  const {
+    data: transactions,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<Transaction[]>({
     queryKey: ['transactions', filterType, filterCategory, sortBy, sortOrder],
     queryFn: async () => {
       const params: Record<string, string> = {};
@@ -95,7 +113,7 @@ export default function TransactionsScreen() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['forecast'] });
-      const exists = categories?.some((c) => c.name === variables.category);
+      const exists = categories?.some(c => c.name === variables.category);
       if (!exists) {
         createCategoryMutation.mutate({
           name: variables.category,
@@ -107,6 +125,7 @@ export default function TransactionsScreen() {
       setShowCategoryInput(false);
       reset();
       setEditingTransaction(null);
+      showToast('Movimiento guardado');
     },
     onError: (err: any) => {
       Alert.alert('Error', err.response?.data?.message || 'No se pudo guardar');
@@ -114,7 +133,13 @@ export default function TransactionsScreen() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, payload }: { id: string; payload: Partial<Transaction> }) => {
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<Transaction>;
+    }) => {
       const res = await api.patch(`/transactions/${id}`, payload);
       return res.data;
     },
@@ -125,9 +150,13 @@ export default function TransactionsScreen() {
       setEditModalVisible(false);
       setEditingTransaction(null);
       reset();
+      showToast('Movimiento actualizado');
     },
     onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo actualizar');
+      Alert.alert(
+        'Error',
+        err.response?.data?.message || 'No se pudo actualizar',
+      );
     },
   });
 
@@ -139,6 +168,7 @@ export default function TransactionsScreen() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['forecast'] });
+      showToast('Movimiento eliminado');
     },
   });
 
@@ -161,10 +191,6 @@ export default function TransactionsScreen() {
       return res.data;
     },
   });
-
-  const filteredTags = categories?.filter(
-    (c) => c.type === selectedType || c.type === 'BOTH',
-  );
 
   const { data: allCategories } = useQuery<Category[]>({
     queryKey: ['categories', 'all'],
@@ -220,8 +246,12 @@ export default function TransactionsScreen() {
 
     const launcher = fromCamera ? launchCamera : launchImageLibrary;
 
-    launcher(options, async (response) => {
-      if (response.didCancel || response.errorCode || !response.assets?.[0]?.base64) {
+    launcher(options, async response => {
+      if (
+        response.didCancel ||
+        response.errorCode ||
+        !response.assets?.[0]?.base64
+      ) {
         return;
       }
       const base64 = response.assets[0].base64;
@@ -233,24 +263,30 @@ export default function TransactionsScreen() {
       if (sizeMB > 1.5) {
         Alert.alert(
           'Imagen muy grande',
-          `La imagen pesa ${sizeMB.toFixed(1)}MB. Intenta sacarla más cercana al ticket o con menos resolución.`,
+          `La imagen pesa ${sizeMB.toFixed(
+            1,
+          )}MB. Intenta sacarla más cercana al ticket o con menos resolución.`,
         );
         return;
       }
 
       setScanLoading(true);
       try {
-        const res = await api.post('/transactions/scan-receipt', { image: imageUri });
+        const res = await api.post('/transactions/scan-receipt', {
+          image: imageUri,
+        });
         const data = res.data as ScannedReceipt;
         setScanAmount(String(data.amount ?? ''));
         setScanCategory(data.category ?? '');
         setScanNote(data.note ?? '');
         setScanDate(data.date ?? new Date().toISOString().split('T')[0]);
         setScanType(data.type ?? 'EXPENSE');
-        setScannedData(data);
         setScanModalVisible(true);
       } catch (err: any) {
-        Alert.alert('Error', err.response?.data?.message || 'No se pudo procesar el ticket');
+        Alert.alert(
+          'Error',
+          err.response?.data?.message || 'No se pudo procesar el ticket',
+        );
       } finally {
         setScanLoading(false);
       }
@@ -259,7 +295,10 @@ export default function TransactionsScreen() {
 
   const confirmScanned = () => {
     if (!scanAmount || !scanCategory || !scanDate) {
-      Alert.alert('Faltan datos', 'Completa al menos el monto, categoría y fecha.');
+      Alert.alert(
+        'Faltan datos',
+        'Completa al menos el monto, categoría y fecha.',
+      );
       return;
     }
     createMutation.mutate({
@@ -270,7 +309,6 @@ export default function TransactionsScreen() {
       date: new Date(scanDate).toISOString(),
     });
     setScanModalVisible(false);
-    setScannedData(null);
     setScanAmount('');
     setScanCategory('');
     setScanNote('');
@@ -278,16 +316,38 @@ export default function TransactionsScreen() {
     setScanType('EXPENSE');
   };
 
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(fabAnim, {
+        toValue: fabMenuVisible ? 1 : 0,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 12,
+      }),
+      Animated.spring(fabRotate, {
+        toValue: fabMenuVisible ? 1 : 0,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 12,
+      }),
+    ]).start();
+  }, [fabMenuVisible, fabAnim, fabRotate]);
+
+  const fabRotation = fabRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg'],
+  });
+
   const showActionMenu = (tx: Transaction) => {
-    Alert.alert(
-      'Movimiento',
-      `${tx.category} - $${tx.amount}`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Editar', onPress: () => openEdit(tx) },
-        { text: 'Eliminar', style: 'destructive', onPress: () => deleteMutation.mutate(tx.id) },
-      ],
-    );
+    Alert.alert('Movimiento', `${tx.category} - $${tx.amount}`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Editar', onPress: () => openEdit(tx) },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: () => deleteMutation.mutate(tx.id),
+      },
+    ]);
   };
 
   if (isLoading) {
@@ -303,161 +363,57 @@ export default function TransactionsScreen() {
     );
   }
 
-  const renderForm = (onFormSubmit: (data: TransactionForm) => void, isEditing: boolean) => (
-    <>
-      <Controller
-        control={control}
-        name="type"
-        render={({ field: { onChange, value } }) => (
-          <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Tipo</Text>
-            <View style={styles.typeRow}>
-              <TouchableOpacity
-                style={[styles.typeBtn, { borderColor: colors.border }, value === 'INCOME' && { backgroundColor: colors.greenLight, borderColor: colors.green }]}
-                onPress={() => onChange('INCOME')}
-              >
-                <Text>💰 Ingreso</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeBtn, { borderColor: colors.border }, value === 'EXPENSE' && { backgroundColor: colors.greenLight, borderColor: colors.green }]}
-                onPress={() => onChange('EXPENSE')}
-              >
-                <Text>💸 Gasto</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="amount"
-        rules={{ required: true }}
-        render={({ field: { onChange, value } }) => (
-          <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Monto</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-              placeholder="Ej: 500"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="decimal-pad"
-              value={value}
-              onChangeText={onChange}
-            />
-          </>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="category"
-        rules={{ required: true }}
-        render={({ field: { onChange, value } }) => (
-          <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Categoría</Text>
-            {filteredTags && filteredTags.length > 0 && !showCategoryInput && (
-              <View style={styles.tagRow}>
-                {filteredTags.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.tag, { backgroundColor: colors.bgSecondary, borderColor: colors.border }, value === cat.name && { backgroundColor: colors.greenLight, borderColor: colors.green }]}
-                    onPress={() => onChange(cat.name)}
-                  >
-                    <Text style={[styles.tagText, { color: colors.textSecondary }, value === cat.name && { color: colors.green, fontWeight: '600' }]}>
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={[styles.tagAdd, { backgroundColor: colors.bg, borderColor: colors.green }]}
-                  onPress={() => setShowCategoryInput(true)}
-                >
-                  <Text style={[styles.tagAddText, { color: colors.green }]}>+</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            {(showCategoryInput || !filteredTags || filteredTags.length === 0) && (
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                placeholder="Ej: Comida, Transporte, Sueldo..."
-                placeholderTextColor={colors.textMuted}
-                value={value}
-                onChangeText={onChange}
-              />
-            )}
-            {showCategoryInput && (
-              <TouchableOpacity onPress={() => setShowCategoryInput(false)}>
-                <Text style={[styles.backToTags, { color: colors.green }]}>← Ver categorías guardadas</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="note"
-        render={({ field: { onChange, value } }) => (
-          <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Nota</Text>
-            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} placeholderTextColor={colors.textMuted} placeholder="Opcional: descripción del movimiento" value={value} onChangeText={onChange} />
-          </>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="date"
-        rules={{ required: true }}
-        render={({ field: { onChange, value } }) => (
-          <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Fecha</Text>
-            <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} placeholderTextColor={colors.textMuted} placeholder="2026-06-06" value={value} onChangeText={onChange} />
-          </>
-        )}
-      />
-
-      <Button
-        title={createMutation.isPending || updateMutation.isPending ? 'Guardando...' : 'Guardar'}
-        onPress={handleSubmit(onFormSubmit)}
-        disabled={createMutation.isPending || updateMutation.isPending}
-      />
-      <View style={styles.cancelBtn}>
-        <Button
-          title="Cancelar"
-          onPress={() => {
-            setModalVisible(false);
-            setEditModalVisible(false);
-            setShowCategoryInput(false);
-            reset();
-            setEditingTransaction(null);
-          }}
-          color={colors.textTertiary}
-        />
-      </View>
-    </>
-  );
-
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <FlatList
         data={transactions}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await refetch();
+              setRefreshing(false);
+            }}
+            tintColor={colors.green}
+          />
+        }
         ListHeaderComponent={
           <View style={styles.filterSection}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-              {(['ALL', 'INCOME', 'EXPENSE'] as const).map((t) => (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              {(['ALL', 'INCOME', 'EXPENSE'] as const).map(t => (
                 <TouchableOpacity
                   key={t}
                   style={[
                     styles.filterChip,
-                    { borderColor: colors.border, backgroundColor: colors.bgSecondary },
-                    filterType === t && { backgroundColor: colors.green, borderColor: colors.green },
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.bgSecondary,
+                    },
+                    filterType === t && {
+                      backgroundColor: colors.green,
+                      borderColor: colors.green,
+                    },
                   ]}
                   onPress={() => setFilterType(t)}
                 >
-                  <Text style={[{ color: colors.text }, filterType === t && { color: colors.bg, fontWeight: '600' }]}>
-                    {t === 'ALL' ? 'Todos' : t === 'INCOME' ? 'Ingresos' : 'Gastos'}
+                  <Text
+                    style={[
+                      { color: colors.text },
+                      filterType === t && { color: colors.bg, ...styles.fontWeight600 },
+                    ]}
+                  >
+                    {t === 'ALL'
+                      ? 'Todos'
+                      : t === 'INCOME'
+                      ? 'Ingresos'
+                      : 'Gastos'}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -468,61 +424,114 @@ export default function TransactionsScreen() {
                 style={styles.sortBtn}
                 onPress={() => {
                   if (sortBy === 'date') {
-                    setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'));
+                    setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
                   } else {
                     setSortBy('date');
                     setSortOrder('desc');
                   }
                 }}
               >
-                <Text style={[styles.sortBtnText, { color: colors.textSecondary }, sortBy === 'date' && { color: colors.green, fontWeight: '700' }]}>
-                  Fecha {sortBy === 'date' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                <Text
+                  style={[
+                    styles.sortBtnText,
+                    { color: colors.textSecondary },
+                    sortBy === 'date' && { color: colors.green, ...styles.fontWeight700 },
+                  ]}
+                >
+                  Fecha{' '}
+                  {sortBy === 'date' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.sortBtn}
                 onPress={() => {
                   if (sortBy === 'amount') {
-                    setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'));
+                    setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
                   } else {
                     setSortBy('amount');
                     setSortOrder('desc');
                   }
                 }}
               >
-                <Text style={[styles.sortBtnText, { color: colors.textSecondary }, sortBy === 'amount' && { color: colors.green, fontWeight: '700' }]}>
-                  Monto {sortBy === 'amount' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                <Text
+                  style={[
+                    styles.sortBtnText,
+                    { color: colors.textSecondary },
+                    sortBy === 'amount' && { color: colors.green, ...styles.fontWeight700 },
+                  ]}
+                >
+                  Monto{' '}
+                  {sortBy === 'amount'
+                    ? sortOrder === 'desc'
+                      ? '↓'
+                      : '↑'
+                    : ''}
                 </Text>
               </TouchableOpacity>
             </View>
 
             {allCategories && allCategories.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterRow}
+              >
                 <TouchableOpacity
                   style={[
                     styles.filterChip,
-                    { borderColor: colors.border, backgroundColor: colors.bgSecondary },
-                    filterCategory === '' && { backgroundColor: colors.green, borderColor: colors.green },
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.bgSecondary,
+                    },
+                    filterCategory === '' && {
+                      backgroundColor: colors.green,
+                      borderColor: colors.green,
+                    },
                   ]}
                   onPress={() => setFilterCategory('')}
                 >
-                  <Text style={[{ color: colors.text }, filterCategory === '' && { color: colors.bg, fontWeight: '600' }]}>
+                  <Text
+                    style={[
+                      { color: colors.text },
+                      filterCategory === '' && { color: colors.bg, ...styles.fontWeight600 },
+                    ]}
+                  >
                     Todas
                   </Text>
                 </TouchableOpacity>
                 {allCategories
-                  .filter((c) => filterType === 'ALL' || c.type === filterType || c.type === 'BOTH')
-                  .map((c) => (
+                  .filter(
+                    c =>
+                      filterType === 'ALL' ||
+                      c.type === filterType ||
+                      c.type === 'BOTH',
+                  )
+                  .map(c => (
                     <TouchableOpacity
                       key={c.id}
                       style={[
                         styles.filterChip,
-                        { borderColor: colors.border, backgroundColor: colors.bgSecondary },
-                        filterCategory === c.name && { backgroundColor: colors.green, borderColor: colors.green },
+                        {
+                          borderColor: colors.border,
+                          backgroundColor: colors.bgSecondary,
+                        },
+                        filterCategory === c.name && {
+                          backgroundColor: colors.green,
+                          borderColor: colors.green,
+                        },
                       ]}
-                      onPress={() => setFilterCategory((prev) => (prev === c.name ? '' : c.name))}
+                      onPress={() =>
+                        setFilterCategory(prev =>
+                          prev === c.name ? '' : c.name,
+                        )
+                      }
                     >
-                      <Text style={[{ color: colors.text }, filterCategory === c.name && { color: colors.bg, fontWeight: '600' }]}>
+                      <Text
+                        style={[
+                          { color: colors.text },
+                          filterCategory === c.name && { color: colors.bg, ...styles.fontWeight600 },
+                        ]}
+                      >
                         {c.name}
                       </Text>
                     </TouchableOpacity>
@@ -539,8 +548,12 @@ export default function TransactionsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>📋</Text>
-            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Sin movimientos</Text>
-            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Registra tu primer ingreso o gasto.</Text>
+            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
+              Sin movimientos
+            </Text>
+            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+              Registra tu primer ingreso o gasto.
+            </Text>
           </View>
         }
       />
@@ -549,146 +562,288 @@ export default function TransactionsScreen() {
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.green }]}
         onPress={() => setFabMenuVisible(!fabMenuVisible)}
+        activeOpacity={0.8}
       >
-        <Text style={[styles.fabText, { color: colors.bg }]}>+</Text>
+        <Animated.Text
+          style={[
+            styles.fabText,
+            { color: colors.bg, transform: [{ rotate: fabRotation }] },
+          ]}
+        >
+          +
+        </Animated.Text>
       </TouchableOpacity>
 
       {/* FAB Menu */}
-      {fabMenuVisible && (
-        <View style={styles.fabMenu}>
-          <TouchableOpacity
-            style={[styles.fabMenuItem, { backgroundColor: colors.bgCard }]}
-            onPress={() => {
+      {[1, 2, 3].map((_, i) => {
+        const items = [
+          {
+            label: '✍️ Nuevo manual',
+            onPress: () => {
               setFabMenuVisible(false);
               setModalVisible(true);
-            }}
+            },
+          },
+          { label: '🖼️ Escanear de galería', onPress: () => pickImage(false) },
+          { label: '📸 Escanear con cámara', onPress: () => pickImage(true) },
+        ];
+        const item = items[i];
+        const translateY = fabAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [20 * (i + 1), 0],
+        });
+        return (
+          <Animated.View
+            key={i}
+            style={[
+              styles.fabMenuItemWrapper,
+              {
+                opacity: fabAnim,
+                transform: [{ translateY }],
+                bottom: 84 + i * 52,
+              },
+            ]}
+            pointerEvents={fabMenuVisible ? 'auto' : 'none'}
           >
-            <Text style={[styles.fabMenuText, { color: colors.text }]}>✍️ Nuevo manual</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.fabMenuItem, { backgroundColor: colors.bgCard }]}
-            onPress={() => pickImage(false)}
-          >
-            <Text style={[styles.fabMenuText, { color: colors.text }]}>🖼️ Escanear de galería</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.fabMenuItem, { backgroundColor: colors.bgCard }]}
-            onPress={() => pickImage(true)}
-          >
-            <Text style={[styles.fabMenuText, { color: colors.text }]}>📸 Escanear con cámara</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            <TouchableOpacity
+              style={[styles.fabMenuItem, { backgroundColor: colors.bgCard }]}
+              onPress={item.onPress}
+            >
+              <Text style={[styles.fabMenuText, { color: colors.text }]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        );
+      })}
 
       {/* Scan loading overlay */}
       {scanLoading && (
-        <View style={styles.scanOverlay}>
+        <View
+          style={[
+            styles.scanOverlay,
+            { backgroundColor: colors.bgModalOverlay },
+          ]}
+        >
           <ActivityIndicator size="large" color={colors.green} />
-          <Text style={[styles.scanText, { color: colors.text }]}>Analizando ticket...</Text>
+          <Text style={[styles.scanText, { color: colors.text }]}>
+            Analizando ticket...
+          </Text>
         </View>
       )}
 
       {/* Create Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={[styles.modalOverlay, { backgroundColor: colors.bgModalOverlay }]}>
-          <ScrollView style={[styles.modalContent, { backgroundColor: colors.bg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Nuevo movimiento</Text>
-            {renderForm(onSubmit, false)}
-          </ScrollView>
-        </View>
+        <KeyboardAvoidingView
+          style={styles.flexFill}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={[
+              styles.modalOverlay,
+              { backgroundColor: colors.bgModalOverlay },
+            ]}
+          >
+            <ScrollView
+              style={[styles.modalContent, { backgroundColor: colors.bg }]}
+            >
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Nuevo movimiento
+              </Text>
+              <TransactionForm
+                control={control}
+                selectedType={selectedType}
+                categories={categories}
+                showCategoryInput={showCategoryInput}
+                setShowCategoryInput={setShowCategoryInput}
+                onSubmit={handleSubmit(onSubmit)}
+                onCancel={() => {
+                  setModalVisible(false);
+                  setEditModalVisible(false);
+                  setShowCategoryInput(false);
+                  reset();
+                  setEditingTransaction(null);
+                }}
+                isPending={createMutation.isPending || updateMutation.isPending}
+              />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit Modal */}
       <Modal visible={editModalVisible} animationType="slide" transparent>
-        <View style={[styles.modalOverlay, { backgroundColor: colors.bgModalOverlay }]}>
-          <ScrollView style={[styles.modalContent, { backgroundColor: colors.bg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Editar movimiento</Text>
-            {renderForm(onEditSubmit, true)}
-          </ScrollView>
-        </View>
+        <KeyboardAvoidingView
+          style={styles.flexFill}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={[
+              styles.modalOverlay,
+              { backgroundColor: colors.bgModalOverlay },
+            ]}
+          >
+            <ScrollView
+              style={[styles.modalContent, { backgroundColor: colors.bg }]}
+            >
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Editar movimiento
+              </Text>
+              <TransactionForm
+                control={control}
+                selectedType={selectedType}
+                categories={categories}
+                showCategoryInput={showCategoryInput}
+                setShowCategoryInput={setShowCategoryInput}
+                onSubmit={handleSubmit(onEditSubmit)}
+                onCancel={() => {
+                  setModalVisible(false);
+                  setEditModalVisible(false);
+                  setShowCategoryInput(false);
+                  reset();
+                  setEditingTransaction(null);
+                }}
+                isPending={createMutation.isPending || updateMutation.isPending}
+              />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Scan Preview Modal - EDITABLE */}
       <Modal visible={scanModalVisible} animationType="slide" transparent>
-        <View style={[styles.modalOverlay, { backgroundColor: colors.bgModalOverlay }]}>
-          <ScrollView style={[styles.modalContent, { backgroundColor: colors.bg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Ticket detectado</Text>
+        <KeyboardAvoidingView
+          style={styles.flexFill}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={[
+              styles.modalOverlay,
+              { backgroundColor: colors.bgModalOverlay },
+            ]}
+          >
+            <ScrollView
+              style={[styles.modalContent, { backgroundColor: colors.bg }]}
+            >
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Ticket detectado
+              </Text>
 
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Monto</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-              placeholder="Ej: 500"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="decimal-pad"
-              value={scanAmount}
-              onChangeText={setScanAmount}
-            />
-
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Categoría</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-              placeholder="Ej: Supermercado, Comida..."
-              placeholderTextColor={colors.textMuted}
-              value={scanCategory}
-              onChangeText={setScanCategory}
-            />
-
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Lugar / Establecimiento</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-              placeholder="Ej: Walmart, Starbucks..."
-              placeholderTextColor={colors.textMuted}
-              value={scanNote}
-              onChangeText={setScanNote}
-            />
-
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Fecha</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.textMuted}
-              value={scanDate}
-              onChangeText={setScanDate}
-            />
-
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Tipo</Text>
-            <View style={styles.typeRow}>
-              <TouchableOpacity
-                style={[styles.typeBtn, { borderColor: colors.border }, scanType === 'INCOME' && { backgroundColor: colors.greenLight, borderColor: colors.green }]}
-                onPress={() => setScanType('INCOME')}
-              >
-                <Text>💰 Ingreso</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeBtn, { borderColor: colors.border }, scanType === 'EXPENSE' && { backgroundColor: colors.greenLight, borderColor: colors.green }]}
-                onPress={() => setScanType('EXPENSE')}
-              >
-                <Text>💸 Gasto</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Button
-              title={createMutation.isPending ? 'Guardando...' : '✅ Confirmar y guardar'}
-              onPress={confirmScanned}
-              disabled={createMutation.isPending}
-            />
-            <View style={styles.cancelBtn}>
-              <Button
-                title="Cancelar"
-                onPress={() => {
-                  setScanModalVisible(false);
-                  setScannedData(null);
-                  setScanAmount('');
-                  setScanCategory('');
-                  setScanNote('');
-                  setScanDate('');
-                  setScanType('EXPENSE');
-                }}
-                color={colors.textTertiary}
+              <Text style={[styles.label, { color: colors.textSecondary }]}>
+                Monto
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { borderColor: colors.border, color: colors.text },
+                ]}
+                placeholder="Ej: 500"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="decimal-pad"
+                value={scanAmount}
+                onChangeText={setScanAmount}
               />
-            </View>
-          </ScrollView>
-        </View>
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>
+                Categoría
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { borderColor: colors.border, color: colors.text },
+                ]}
+                placeholder="Ej: Supermercado, Comida..."
+                placeholderTextColor={colors.textMuted}
+                value={scanCategory}
+                onChangeText={setScanCategory}
+              />
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>
+                Lugar / Establecimiento
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { borderColor: colors.border, color: colors.text },
+                ]}
+                placeholder="Ej: Walmart, Starbucks..."
+                placeholderTextColor={colors.textMuted}
+                value={scanNote}
+                onChangeText={setScanNote}
+              />
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>
+                Fecha
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { borderColor: colors.border, color: colors.text },
+                ]}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.textMuted}
+                value={scanDate}
+                onChangeText={setScanDate}
+              />
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>
+                Tipo
+              </Text>
+              <View style={styles.typeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeBtn,
+                    { borderColor: colors.border },
+                    scanType === 'INCOME' && {
+                      backgroundColor: colors.greenLight,
+                      borderColor: colors.green,
+                    },
+                  ]}
+                  onPress={() => setScanType('INCOME')}
+                >
+                  <Text>💰 Ingreso</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeBtn,
+                    { borderColor: colors.border },
+                    scanType === 'EXPENSE' && {
+                      backgroundColor: colors.greenLight,
+                      borderColor: colors.green,
+                    },
+                  ]}
+                  onPress={() => setScanType('EXPENSE')}
+                >
+                  <Text>💸 Gasto</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Button
+                title={
+                  createMutation.isPending
+                    ? 'Guardando...'
+                    : '✅ Confirmar y guardar'
+                }
+                onPress={confirmScanned}
+                disabled={createMutation.isPending}
+              />
+              <View style={styles.cancelBtn}>
+                <Button
+                  title="Cancelar"
+                  onPress={() => {
+                    setScanModalVisible(false);
+                    setScanAmount('');
+                    setScanCategory('');
+                    setScanNote('');
+                    setScanDate('');
+                    setScanType('EXPENSE');
+                  }}
+                  color={colors.textTertiary}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -697,23 +852,24 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 12,
+    paddingRight: 8,
   },
   emptyContainer: {
     alignItems: 'center',
-    marginTop: 48,
+    marginTop: 24,
   },
   emptyEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 28,
     marginBottom: 4,
   },
-  emptyText: {
+  emptyTitle: {
     fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  emptyText: {
+    fontSize: 13,
     textAlign: 'center',
   },
   fab: {
@@ -736,11 +892,9 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
   },
-  fabMenu: {
+  fabMenuItemWrapper: {
     position: 'absolute',
     right: 20,
-    bottom: 84,
-    gap: 8,
     zIndex: 9,
   },
   fabMenuItem: {
@@ -765,7 +919,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
     zIndex: 100,
   },
   scanText: {
@@ -811,76 +964,41 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     borderRadius: 8,
   },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-    gap: 6,
-  },
-  tag: {
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-  },
-  tagText: {
-    fontSize: 13,
-  },
-  tagAdd: {
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  tagAddText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  backToTags: {
-    fontSize: 13,
-    marginTop: -4,
-    marginBottom: 12,
-  },
   cancelBtn: {
     marginTop: 8,
   },
-  scanPreview: {
-    marginBottom: 16,
-  },
-  scanLabel: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  scanValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
   filterSection: {
-    marginBottom: 12,
-    gap: 10,
+    marginBottom: 8,
+    gap: 6,
   },
   filterRow: {
-    gap: 8,
-    paddingVertical: 4,
+    gap: 6,
+    paddingVertical: 2,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
     borderWidth: 1,
-    marginRight: 8,
+    marginRight: 6,
   },
   sortRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginVertical: 4,
+    gap: 12,
   },
   sortBtn: {
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   sortBtnText: {
-    fontSize: 14,
+    fontSize: 13,
+  },
+  fontWeight700: {
+    fontWeight: '700',
+  },
+  fontWeight600: {
+    fontWeight: '600',
+  },
+  flexFill: {
+    flex: 1,
   },
 });

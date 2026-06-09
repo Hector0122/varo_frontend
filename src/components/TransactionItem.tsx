@@ -32,18 +32,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
   },
   info: {
     flex: 1,
   },
   category: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
   },
   note: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
   },
   date: {
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   amount: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
 });
