@@ -26,6 +26,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
+import RNFS from 'react-native-fs';
 import type { Transaction, Category } from '../types';
 
 interface TransactionForm {
@@ -549,12 +550,9 @@ export default function TransactionsScreen() {
                   const csv = res.data;
                   const date = new Date().toISOString().split('T')[0];
                   const fileName = `varo-transacciones-${date}.csv`;
-                  // Compartir usando Share (si está disponible) o copiar al clipboard
-                  const Share = require('react-native').Share;
-                  await Share.share({
-                    message: csv,
-                    title: fileName,
-                  });
+                  const filePath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+                  await RNFS.writeFile(filePath, csv, 'utf8');
+                  showToast(`CSV guardado en Descargas/${fileName}`);
                 } catch (err: any) {
                   Alert.alert('Error', 'No se pudo exportar: ' + (err.message || 'Error desconocido'));
                 }
