@@ -27,6 +27,7 @@ import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import RNFS from 'react-native-fs';
+import Share from 'react-native-share';
 import type { Transaction, Category } from '../types';
 
 interface TransactionForm {
@@ -550,11 +551,19 @@ export default function TransactionsScreen() {
                   const csv = res.data;
                   const date = new Date().toISOString().split('T')[0];
                   const fileName = `varo-transacciones-${date}.csv`;
-                  const filePath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+                  const filePath = `${RNFS.CachesDirectoryPath}/${fileName}`;
                   await RNFS.writeFile(filePath, csv, 'utf8');
-                  showToast(`CSV guardado en Descargas/${fileName}`);
+                  await Share.open({
+                    url: `file://${filePath}`,
+                    type: 'text/csv',
+                    title: fileName,
+                    subject: `Exportación Varo - ${fileName}`,
+                    message: 'Tus movimientos financieros exportados desde Varo',
+                  });
                 } catch (err: any) {
-                  Alert.alert('Error', 'No se pudo exportar: ' + (err.message || 'Error desconocido'));
+                  if (err?.message !== 'User did not share') {
+                    Alert.alert('Error', 'No se pudo exportar: ' + (err.message || 'Error desconocido'));
+                  }
                 }
               }}
             >
