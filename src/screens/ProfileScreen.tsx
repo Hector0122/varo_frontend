@@ -1,20 +1,62 @@
-import React from 'react';
-import { View, Text, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  Button,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { logout } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/ThemeContext';
+import { useBiometrics } from '../hooks/useBiometrics';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 export default function ProfileScreen() {
-  const { clearAuth } = useAuth();
+  const { clearAuth, lockApp } = useAuth();
   const { mode, toggle, colors } = useTheme();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { available, enabled, enableBiometrics, disableBiometrics, setPin } =
+    useBiometrics();
+  const [pinInput, setPinInput] = useState('');
+  const [showPinSetup, setShowPinSetup] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     await clearAuth();
+  };
+
+  const handleSetupPin = async () => {
+    if (pinInput.length < 4) {
+      Alert.alert('PIN muy corto', 'El PIN debe tener al menos 4 dígitos');
+      return;
+    }
+    await setPin(pinInput);
+    await enableBiometrics();
+    setPinInput('');
+    setShowPinSetup(false);
+    Alert.alert(
+      'Listo',
+      'Bloqueo activado. La próxima vez que abras la app se pedirá el PIN.',
+    );
+  };
+
+  const handleDisableLock = async () => {
+    Alert.alert('Desactivar bloqueo', '¿Estás seguro?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Desactivar',
+        style: 'destructive',
+        onPress: async () => {
+          await disableBiometrics();
+        },
+      },
+    ]);
   };
 
   return (
@@ -22,7 +64,10 @@ export default function ProfileScreen() {
       <Text style={[styles.title, { color: colors.text }]}>Perfil</Text>
 
       <TouchableOpacity
-        style={[styles.option, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+        style={[
+          styles.option,
+          { backgroundColor: colors.bgCard, borderColor: colors.border },
+        ]}
         onPress={toggle}
       >
         <Text style={[styles.optionText, { color: colors.text }]}>
@@ -31,11 +76,101 @@ export default function ProfileScreen() {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.option, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+        style={[
+          styles.option,
+          { backgroundColor: colors.bgCard, borderColor: colors.border },
+        ]}
         onPress={() => navigation.navigate('Categories')}
       >
-        <Text style={[styles.optionText, { color: colors.text }]}>🏷️ Administrar categorías</Text>
+        <Text style={[styles.optionText, { color: colors.text }]}>
+          🏷️ Administrar categorías
+        </Text>
       </TouchableOpacity>
+
+      {/* Bloqueo */}
+      {!enabled ? (
+        <TouchableOpacity
+          style={[
+            styles.option,
+            { backgroundColor: colors.bgCard, borderColor: colors.border },
+          ]}
+          onPress={() => setShowPinSetup(true)}
+        >
+          <Text style={[styles.optionText, { color: colors.text }]}>
+            {available
+              ? '🔒 Activar bloqueo (PIN / Huella)'
+              : '🔒 Activar bloqueo (PIN)'}
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <>
+          <TouchableOpacity
+            style={[
+              styles.option,
+              { backgroundColor: colors.bgCard, borderColor: colors.border },
+            ]}
+            onPress={handleDisableLock}
+          >
+            <Text style={[styles.optionText, { color: colors.red }]}>
+              🔓 Desactivar bloqueo
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.option,
+              { backgroundColor: colors.bgCard, borderColor: colors.border },
+            ]}
+            onPress={lockApp}
+          >
+            <Text style={[styles.optionText, { color: colors.text }]}>
+              🔒 Bloquear app ahora
+            </Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {showPinSetup && (
+        <View
+          style={[
+            styles.pinSetup,
+            { backgroundColor: colors.bgCard, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.pinLabel, { color: colors.text }]}>
+            Crea un PIN de 4-6 dígitos
+          </Text>
+          <TextInput
+            style={[
+              styles.pinInput,
+              {
+                borderColor: colors.border,
+                color: colors.text,
+                backgroundColor: colors.inputBg,
+              },
+            ]}
+            placeholder="PIN"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="number-pad"
+            secureTextEntry
+            maxLength={6}
+            value={pinInput}
+            onChangeText={setPinInput}
+          />
+          <View style={styles.pinButtons}>
+            <Button
+              title="Cancelar"
+              onPress={() => setShowPinSetup(false)}
+              color={colors.textMuted}
+            />
+            <Button
+              title="Guardar"
+              onPress={handleSetupPin}
+              color={colors.green}
+            />
+          </View>
+        </View>
+      )}
 
       <View style={styles.spacer} />
 
@@ -70,5 +205,26 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flex: 1,
+  },
+  pinSetup: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  pinLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  pinInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  pinButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });

@@ -8,11 +8,12 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { ToastProvider } from './src/hooks/useToast';
 import AuthStack from './src/navigation/AuthStack';
 import AppNavigator from './src/navigation/AppNavigator';
+import LockScreen from './src/screens/LockScreen';
 
 const queryClient = new QueryClient();
 
 function Root() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLocked, unlockApp } = useAuth();
   const { mode } = useTheme();
 
   if (isAuthenticated === null) {
@@ -23,7 +24,13 @@ function Root() {
     <>
       <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       <NavigationContainer>
-        {isAuthenticated ? <AppNavigator /> : <AuthStack />}
+        {isLocked && isAuthenticated ? (
+          <LockScreen onUnlock={unlockApp} />
+        ) : isAuthenticated ? (
+          <AppNavigator />
+        ) : (
+          <AuthStack />
+        )}
       </NavigationContainer>
     </>
   );

@@ -22,10 +22,14 @@ Aplicación móvil de seguimiento financiero personal. Construida con React Nati
 - **Dashboard** — Resumen de ingresos, gastos, ahorro neto, meta principal + forecast
 - **Movimientos** — Lista, crear, editar, eliminar, filtrar por tipo/categoría, ordenar por fecha/monto
 - **Scan de tickets** — Usa Groq Vision para extraer datos de tickets/comprobantes
+- **Exportar CSV** — Exportar todas las transacciones a CSV para compartir
 - **Metas** — Crear, editar, eliminar, asignar porcentaje de ahorro
 - **Detalle de Meta** — Progreso, forecast widget, tendencia, agregar y retirar ahorro
+- **Deudas** — Crear, pagar, aumentar, eliminar, ver historial de pagos
+- **Detalle de Deuda** — Progreso, pagos, aumentos, historial de movimientos
 - **Categorías** — CRUD de categorías personalizadas
-- **Perfil** — Logout, toggle tema
+- **Perfil** — Logout, toggle tema, bloqueo con PIN / huella
+- **Bloqueo de app** — PIN local o biometría (huella / Face ID) para proteger acceso
 - **Theming** — Soporte light/dark mode con sistema de colores centralizado
 - **Widget Android** — Meta principal con días restantes en la pantalla de inicio, actualizado al abrir la app
 
@@ -36,11 +40,12 @@ src/
   components/      — Componentes reutilizables
   screens/          — Pantallas de la app
   navigation/       — Configuración de navegación
-  hooks/           — Custom hooks (useAuth)
+  hooks/           — Custom hooks (useAuth, useToast)
   services/        — API client, auth service
   theme/           — ThemeContext, colors
   types/           — TypeScript interfaces
   widget/          — Componentes y handler para el widget Android
+  utils/           — Utilidades (vacío, para futuras helpers)
 ```
 
 ## Configuración

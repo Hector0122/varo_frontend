@@ -538,6 +538,32 @@ export default function TransactionsScreen() {
                   ))}
               </ScrollView>
             )}
+
+            <TouchableOpacity
+              style={[styles.exportBtn, { borderColor: colors.border }]}
+              onPress={async () => {
+                try {
+                  const res = await api.get('/transactions/export/csv', {
+                    responseType: 'text',
+                  });
+                  const csv = res.data;
+                  const date = new Date().toISOString().split('T')[0];
+                  const fileName = `varo-transacciones-${date}.csv`;
+                  // Compartir usando Share (si está disponible) o copiar al clipboard
+                  const Share = require('react-native').Share;
+                  await Share.share({
+                    message: csv,
+                    title: fileName,
+                  });
+                } catch (err: any) {
+                  Alert.alert('Error', 'No se pudo exportar: ' + (err.message || 'Error desconocido'));
+                }
+              }}
+            >
+              <Text style={[styles.exportBtnText, { color: colors.green }]}>
+                📤 Exportar CSV
+              </Text>
+            </TouchableOpacity>
           </View>
         }
         renderItem={({ item }) => (
@@ -1000,5 +1026,18 @@ const styles = StyleSheet.create({
   },
   flexFill: {
     flex: 1,
+  },
+  exportBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  exportBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
