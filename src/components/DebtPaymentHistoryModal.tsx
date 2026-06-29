@@ -39,22 +39,32 @@ export default function DebtPaymentHistoryModal({ visible, debtId, debtName, onC
               data={payments}
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
-                <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
-                  <View style={styles.rowLeft}>
-                    <Text style={[styles.rowType, { color: colors.text }]}>
-                      {item.type === 'PAYMENT' ? '💰 Pago' : '📈 Aumento'}
-                    </Text>
-                    <Text style={[styles.rowDate, { color: colors.textMuted }]}>
-                      {new Date(item.createdAt).toLocaleDateString()}
+                  <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
+                    <View style={styles.rowLeft}>
+                      <Text style={[styles.rowType, { color: colors.text }]}>
+                        {item.type === 'PAYMENT' ? '💰 Pago' : '📈 Aumento'}
+                      </Text>
+                      <Text style={[styles.rowDate, { color: colors.textMuted }]}>
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </Text>
+                      {item.note && (
+                        <Text style={[styles.rowNote, { color: colors.textTertiary }]} numberOfLines={2}>
+                          {item.note}
+                        </Text>
+                      )}
+                      {item.type === 'INCREASE' && item.installments && item.installments > 1 && (
+                        <Text style={[styles.rowNote, { color: colors.textTertiary }]}>
+                          {item.installments} meses de ${(Number(item.amount) / item.installments).toLocaleString()}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.rowAmount,
+                      { color: item.type === 'PAYMENT' ? colors.green : colors.red },
+                    ]}>
+                      {item.type === 'PAYMENT' ? '-' : '+'}${Number(item.amount).toLocaleString()}
                     </Text>
                   </View>
-                  <Text style={[
-                    styles.rowAmount,
-                    { color: item.type === 'PAYMENT' ? colors.green : colors.red },
-                  ]}>
-                    {item.type === 'PAYMENT' ? '-' : '+'}${Number(item.amount).toLocaleString()}
-                  </Text>
-                </View>
               )}
             />
           ) : (
@@ -106,6 +116,11 @@ const styles = StyleSheet.create({
   rowDate: {
     fontSize: 12,
     marginTop: 2,
+  },
+  rowNote: {
+    fontSize: 12,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   rowAmount: {
     fontSize: 15,

@@ -8,9 +8,10 @@ interface Props {
   compact?: boolean;
   onPress?: () => void;
   onHistory?: () => void;
+  monthlySpending?: number;
 }
 
-export default function DebtCard({ debt, compact, onPress, onHistory }: Props) {
+export default function DebtCard({ debt, compact, onPress, onHistory, monthlySpending }: Props) {
   const { colors } = useTheme();
   const paid = Number(debt.totalAmount) - Number(debt.currentAmount);
   const progress = Number(debt.totalAmount) > 0 ? (paid / Number(debt.totalAmount)) * 100 : 0;
@@ -39,6 +40,11 @@ export default function DebtCard({ debt, compact, onPress, onHistory }: Props) {
       {debt.dueDate && (
         <Text style={[styles.due, { color: colors.textMuted }]}>
           Vence: {new Date(debt.dueDate).toLocaleDateString()}
+        </Text>
+      )}
+      {monthlySpending !== undefined && monthlySpending > 0 && (
+        <Text style={[styles.monthlySpending, { color: colors.textMuted }]}>
+          💳 Gasto mensual: ${monthlySpending.toLocaleString()}
         </Text>
       )}
     </View>
@@ -114,6 +120,10 @@ const styles = StyleSheet.create({
   due: {
     fontSize: 11,
     marginTop: 4,
+  },
+  monthlySpending: {
+    fontSize: 11,
+    marginTop: 2,
   },
   historyLink: {
     fontSize: 13,

@@ -74,5 +74,13 @@ export interface DebtPayment {
   debtId: string;
   amount: number;
   type: 'PAYMENT' | 'INCREASE';
+  note?: string | null;
+  installments?: number;
+  purchaseDate?: string;
   createdAt: string;
+}
+
+export interface MonthlySpendingEntry {
+  debtId: string;
+  monthlySpending: number;
 }

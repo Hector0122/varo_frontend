@@ -21,8 +21,10 @@ export default function DebtDetailScreen() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
-  const [payAmount, setPayAmount] = useState('');
-  const [addAmount, setAddAmount] = useState('');
+  const [amount, setAmount] = useState('');
+  const [actionMode, setActionMode] = useState<'pay' | 'add'>('pay');
+  const [note, setNote] = useState('');
+  const [installments, setInstallments] = useState('1');
   const [historyVisible, setHistoryVisible] = useState(false);
 
   const { data: debt, isLoading, isError, refetch } = useQuery<Debt>({
@@ -35,13 +37,14 @@ export default function DebtDetailScreen() {
 
   const payMutation = useMutation({
     mutationFn: async (amount: number) => {
-      const res = await api.post(`/debts/${debtId}/pay`, { amount });
+      const res = await api.post(`/debts/${debtId}/pay`, { amount, ...(note && { note }) });
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debt', debtId] });
       queryClient.invalidateQueries({ queryKey: ['debts'] });
-      setPayAmount('');
+      setAmount('');
+      setNote('');
       showToast('Pago registrado');
     },
     onError: (err: any) => {
@@ -51,13 +54,16 @@ export default function DebtDetailScreen() {
 
   const addMutation = useMutation({
     mutationFn: async (amount: number) => {
-      const res = await api.post(`/debts/${debtId}/add`, { amount });
+      const inst = parseInt(installments, 10) || 1;
+      const res = await api.post(`/debts/${debtId}/add`, { amount, ...(note && { note }), installments: inst });
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debt', debtId] });
       queryClient.invalidateQueries({ queryKey: ['debts'] });
-      setAddAmount('');
+      setAmount('');
+      setNote('');
+      setInstallments('1');
       showToast('Monto agregado a la deuda');
     },
     onError: (err: any) => {
@@ -125,55 +131,87 @@ export default function DebtDetailScreen() {
         )}
       </View>
 
-      {/* Pay */}
+      {/* Unified movement */}
       <View style={[styles.actionCard, { backgroundColor: colors.bgCard }]}>
-        <Text style={[styles.actionTitle, { color: colors.text }]}>💰 Pagar</Text>
+        <Text style={[styles.actionTitle, { color: colors.text }]}>Movimiento</Text>
+        <View style={styles.modeRow}>
+          <TouchableOpacity
+            style={[
+              styles.modeBtn,
+              { borderColor: colors.border, backgroundColor: colors.bgSecondary },
+              actionMode === 'pay' && { backgroundColor: colors.green, borderColor: colors.green },
+            ]}
+            onPress={() => setActionMode('pay')}
+          >
+            <Text style={[
+              styles.modeBtnText,
+              { color: colors.text },
+              actionMode === 'pay' && { color: colors.bg },
+            ]}>Pagar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.modeBtn,
+              { borderColor: colors.border, backgroundColor: colors.bgSecondary },
+              actionMode === 'add' && { backgroundColor: colors.red, borderColor: colors.red },
+            ]}
+            onPress={() => setActionMode('add')}
+          >
+            <Text style={[
+              styles.modeBtnText,
+              { color: colors.text },
+              actionMode === 'add' && styles.textWhite,
+            ]}>Aumentar</Text>
+          </TouchableOpacity>
+        </View>
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.inputBg }]}
-          placeholder="Monto a pagar"
+          placeholder="Monto"
           placeholderTextColor={colors.textMuted}
           keyboardType="decimal-pad"
-          value={payAmount}
-          onChangeText={setPayAmount}
+          value={amount}
+          onChangeText={setAmount}
         />
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.green }]}
-          onPress={() => {
-            const amount = parseFloat(payAmount);
-            if (!amount || amount <= 0) return Alert.alert('Error', 'Ingresa un monto válido');
-            if (amount > Number(debt.currentAmount)) return Alert.alert('Error', 'El pago no puede ser mayor al saldo pendiente');
-            payMutation.mutate(amount);
-          }}
-          disabled={payMutation.isPending}
-        >
-          <Text style={styles.actionBtnText}>
-            {payMutation.isPending ? 'Pagando...' : 'Pagar'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Add */}
-      <View style={[styles.actionCard, { backgroundColor: colors.bgCard }]}>
-        <Text style={[styles.actionTitle, { color: colors.text }]}>📈 Aumentar deuda</Text>
         <TextInput
           style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.inputBg }]}
-          placeholder="Monto a agregar"
+          placeholder="Nota (opcional)"
           placeholderTextColor={colors.textMuted}
-          keyboardType="decimal-pad"
-          value={addAmount}
-          onChangeText={setAddAmount}
+          value={note}
+          onChangeText={setNote}
         />
+        {actionMode === 'add' && (
+          <TextInput
+            style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.inputBg }]}
+            placeholder="Meses (1 = contado)"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="number-pad"
+            value={installments}
+            onChangeText={setInstallments}
+          />
+        )}
         <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.red }]}
+          style={[
+            styles.actionBtn,
+            { backgroundColor: actionMode === 'pay' ? colors.green : colors.red },
+          ]}
           onPress={() => {
-            const amount = parseFloat(addAmount);
-            if (!amount || amount <= 0) return Alert.alert('Error', 'Ingresa un monto válido');
-            addMutation.mutate(amount);
+            const val = parseFloat(amount);
+            if (!val || val <= 0) return Alert.alert('Error', 'Ingresa un monto válido');
+            if (actionMode === 'pay') {
+              if (val > Number(debt.currentAmount)) return Alert.alert('Error', 'El pago no puede ser mayor al saldo pendiente');
+              payMutation.mutate(val);
+            } else {
+              addMutation.mutate(val);
+            }
           }}
-          disabled={addMutation.isPending}
+          disabled={payMutation.isPending || addMutation.isPending}
         >
           <Text style={styles.actionBtnText}>
-            {addMutation.isPending ? 'Agregando...' : 'Agregar'}
+            {payMutation.isPending || addMutation.isPending
+              ? 'Guardando...'
+              : actionMode === 'pay'
+              ? 'Pagar'
+              : 'Aumentar deuda'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -266,6 +304,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  modeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   input: {
     borderWidth: 1,
     borderRadius: 8,
@@ -282,6 +336,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  textWhite: {
+    color: '#fff',
   },
   historyBtn: {
     paddingVertical: 14,

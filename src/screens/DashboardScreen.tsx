@@ -15,7 +15,7 @@ import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import GoalWidget, { type GoalWidgetData } from '../widget/GoalWidget';
-import type { Transaction, Goal, Forecast, Debt } from '../types';
+import type { Transaction, Goal, Forecast, Debt, MonthlySpendingEntry } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 export default function DashboardScreen() {
@@ -62,6 +62,14 @@ export default function DashboardScreen() {
     queryKey: ['debts'],
     queryFn: async () => {
       const res = await api.get('/debts');
+      return res.data;
+    },
+  });
+
+  const { data: monthlySpendingData } = useQuery<MonthlySpendingEntry[]>({
+    queryKey: ['monthly-spending'],
+    queryFn: async () => {
+      const res = await api.get('/debts/spending/monthly');
       return res.data;
     },
   });
@@ -170,21 +178,25 @@ export default function DashboardScreen() {
       {/* Debts Section */}
       <Text style={[styles.header, styles.debtsHeader, { color: colors.text }]}>Deudas</Text>
       {debts && debts.length > 0 ? (
-        debts.map(debt => (
-          <TouchableOpacity
-            key={debt.id}
-            onPress={() => navigation.navigate('DebtDetail', { debtId: debt.id })}
-          >
-            <DebtCard
-              debt={debt}
-              compact
-              onHistory={() => {
-                setHistoryDebtId(debt.id);
-                setHistoryDebtName(debt.name);
-              }}
-            />
-          </TouchableOpacity>
-        ))
+        debts.map(debt => {
+          const spending = monthlySpendingData?.find(s => s.debtId === debt.id);
+          return (
+            <TouchableOpacity
+              key={debt.id}
+              onPress={() => navigation.navigate('DebtDetail', { debtId: debt.id })}
+            >
+              <DebtCard
+                debt={debt}
+                compact
+                monthlySpending={spending?.monthlySpending}
+                onHistory={() => {
+                  setHistoryDebtId(debt.id);
+                  setHistoryDebtName(debt.name);
+                }}
+              />
+            </TouchableOpacity>
+          );
+        })
       ) : (
         <View style={[styles.emptyCard, { backgroundColor: colors.bgCard }]}>
           <Text style={styles.emptyEmoji}>💳</Text>
