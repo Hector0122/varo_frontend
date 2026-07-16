@@ -8,6 +8,7 @@ import { api } from '../services/api';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import DebtPaymentHistoryModal from '../components/DebtPaymentHistoryModal';
+import StatementDayPicker from '../components/StatementDayPicker';
 import type { Debt } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -26,7 +27,7 @@ export default function DebtDetailScreen() {
   const [note, setNote] = useState('');
   const [installments, setInstallments] = useState('1');
   const [historyVisible, setHistoryVisible] = useState(false);
-  const [statementDayInput, setStatementDayInput] = useState('');
+  const [statementDay, setStatementDay] = useState<number | null>(null);
 
   const { data: debt, isLoading, isError, refetch } = useQuery<Debt>({
     queryKey: ['debt', debtId],
@@ -73,8 +74,8 @@ export default function DebtDetailScreen() {
   });
 
   const updateStatementDayMutation = useMutation({
-    mutationFn: async (statementDay: number) => {
-      const res = await api.patch(`/debts/${debtId}`, { statementDay });
+    mutationFn: async (day: number) => {
+      const res = await api.patch(`/debts/${debtId}`, { statementDay: day });
       return res.data;
     },
     onSuccess: () => {
@@ -110,10 +111,13 @@ export default function DebtDetailScreen() {
   };
 
   useEffect(() => {
-    if (debt && statementDayInput === '') {
-      setStatementDayInput(String(debt.statementDay));
+    if (debt) {
+      setStatementDay(debt.statementDay);
     }
-  }, [debt, statementDayInput]);
+    // Only re-sync when a different debt loads, not on every refetch of the
+    // same debt — otherwise an in-progress stepper edit gets clobbered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debt?.id]);
 
   if (isLoading) return <LoadingScreen />;
   if (isError) return <ErrorMessage message="No se pudo cargar la deuda." onRetry={refetch} />;
@@ -160,31 +164,22 @@ export default function DebtDetailScreen() {
         <Text style={[styles.label, { color: colors.textTertiary, marginBottom: 8 }]}>
           El gasto mensual se calcula del día de corte de un mes al mismo día del siguiente.
         </Text>
-        <View style={styles.modeRow}>
-          <TextInput
-            style={[styles.input, { flex: 1, marginBottom: 0, borderColor: colors.border, color: colors.text, backgroundColor: colors.inputBg }]}
-            placeholder="Ej: 20"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="number-pad"
-            value={statementDayInput}
-            onChangeText={setStatementDayInput}
-          />
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.green, paddingHorizontal: 16 }]}
-            onPress={() => {
-              const day = parseInt(statementDayInput, 10);
-              if (!day || day < 1 || day > 31) {
-                return Alert.alert('Error', 'Ingresa un día entre 1 y 31');
-              }
-              updateStatementDayMutation.mutate(day);
-            }}
-            disabled={updateStatementDayMutation.isPending}
-          >
-            <Text style={styles.actionBtnText}>
-              {updateStatementDayMutation.isPending ? '...' : 'Guardar'}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.statementPickerWrap}>
+          <StatementDayPicker value={statementDay ?? 1} onChange={setStatementDay} />
         </View>
+        <TouchableOpacity
+          style={[
+            styles.actionBtn,
+            { backgroundColor: colors.green },
+            statementDay === debt.statementDay && styles.actionBtnDisabled,
+          ]}
+          onPress={() => statementDay !== null && updateStatementDayMutation.mutate(statementDay)}
+          disabled={updateStatementDayMutation.isPending || statementDay === debt.statementDay}
+        >
+          <Text style={styles.actionBtnText}>
+            {updateStatementDayMutation.isPending ? 'Guardando...' : 'Guardar'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Unified movement */}
@@ -375,6 +370,12 @@ const styles = StyleSheet.create({
   modeBtnText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  statementPickerWrap: {
+    marginBottom: 16,
+  },
+  actionBtnDisabled: {
+    opacity: 0.5,
   },
   input: {
     borderWidth: 1,

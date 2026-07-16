@@ -10,6 +10,7 @@ import SummaryCard from '../components/SummaryCard';
 import ForecastWidget from '../components/ForecastWidget';
 import DebtCard from '../components/DebtCard';
 import DebtPaymentHistoryModal from '../components/DebtPaymentHistoryModal';
+import StatementDayPicker from '../components/StatementDayPicker';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
@@ -28,7 +29,7 @@ export default function DashboardScreen() {
   const [debtName, setDebtName] = useState('');
   const [debtTotal, setDebtTotal] = useState('');
   const [debtDueDate, setDebtDueDate] = useState('');
-  const [debtStatementDay, setDebtStatementDay] = useState('');
+  const [debtStatementDay, setDebtStatementDay] = useState(1);
   const [historyDebtId, setHistoryDebtId] = useState<string | null>(null);
   const [historyDebtName, setHistoryDebtName] = useState('');
   const { data: transactions, isLoading: txLoading, isError: txError, refetch: txRefetch } = useQuery<Transaction[]>({
@@ -77,12 +78,11 @@ export default function DashboardScreen() {
 
   const createDebtMutation = useMutation({
     mutationFn: async () => {
-      const statementDay = parseInt(debtStatementDay, 10);
       const res = await api.post('/debts', {
         name: debtName,
         totalAmount: parseFloat(debtTotal),
         dueDate: debtDueDate || undefined,
-        statementDay: statementDay >= 1 && statementDay <= 31 ? statementDay : undefined,
+        statementDay: debtStatementDay,
       });
       return res.data;
     },
@@ -93,7 +93,7 @@ export default function DashboardScreen() {
       setDebtName('');
       setDebtTotal('');
       setDebtDueDate('');
-      setDebtStatementDay('');
+      setDebtStatementDay(1);
       showToast('Deuda creada');
     },
     onError: (err: any) => {
@@ -253,15 +253,10 @@ export default function DashboardScreen() {
               onChangeText={setDebtDueDate}
             />
 
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Día de corte (opcional)</Text>
-            <TextInput
-              style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.inputBg }]}
-              placeholder="Ej: 20"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="number-pad"
-              value={debtStatementDay}
-              onChangeText={setDebtStatementDay}
-            />
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Día de corte (si aplica)</Text>
+            <View style={styles.statementPickerWrap}>
+              <StatementDayPicker value={debtStatementDay} onChange={setDebtStatementDay} />
+            </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -271,7 +266,7 @@ export default function DashboardScreen() {
                   setDebtName('');
                   setDebtTotal('');
                   setDebtDueDate('');
-                  setDebtStatementDay('');
+                  setDebtStatementDay(1);
                 }}
               >
                 <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Cancelar</Text>
@@ -383,6 +378,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
+    marginBottom: 12,
+  },
+  statementPickerWrap: {
     marginBottom: 12,
   },
   modalActions: {
