@@ -66,6 +66,7 @@ export interface Debt {
   totalAmount: number;
   currentAmount: number;
   dueDate?: string | null;
+  statementDay: number;
   createdAt: string;
 }
 
@@ -83,4 +84,6 @@ export interface DebtPayment {
 export interface MonthlySpendingEntry {
   debtId: string;
   monthlySpending: number;
+  periodStart: string;
+  periodEnd: string;
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -26,6 +26,7 @@ export default function DebtDetailScreen() {
   const [note, setNote] = useState('');
   const [installments, setInstallments] = useState('1');
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [statementDayInput, setStatementDayInput] = useState('');
 
   const { data: debt, isLoading, isError, refetch } = useQuery<Debt>({
     queryKey: ['debt', debtId],
@@ -71,6 +72,22 @@ export default function DebtDetailScreen() {
     },
   });
 
+  const updateStatementDayMutation = useMutation({
+    mutationFn: async (statementDay: number) => {
+      const res = await api.patch(`/debts/${debtId}`, { statementDay });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['debt', debtId] });
+      queryClient.invalidateQueries({ queryKey: ['debts'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-spending'] });
+      showToast('Día de corte actualizado');
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.response?.data?.message || 'No se pudo actualizar el día de corte');
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async () => {
       await api.delete(`/debts/${debtId}`);
@@ -91,6 +108,12 @@ export default function DebtDetailScreen() {
       { text: 'Eliminar', style: 'destructive', onPress: () => deleteMutation.mutate() },
     ]);
   };
+
+  useEffect(() => {
+    if (debt && statementDayInput === '') {
+      setStatementDayInput(String(debt.statementDay));
+    }
+  }, [debt, statementDayInput]);
 
   if (isLoading) return <LoadingScreen />;
   if (isError) return <ErrorMessage message="No se pudo cargar la deuda." onRetry={refetch} />;
@@ -129,6 +152,39 @@ export default function DebtDetailScreen() {
             Vence: {new Date(debt.dueDate).toLocaleDateString()}
           </Text>
         )}
+      </View>
+
+      {/* Statement cutoff day */}
+      <View style={[styles.actionCard, { backgroundColor: colors.bgCard }]}>
+        <Text style={[styles.actionTitle, { color: colors.text }]}>Día de corte</Text>
+        <Text style={[styles.label, { color: colors.textTertiary, marginBottom: 8 }]}>
+          El gasto mensual se calcula del día de corte de un mes al mismo día del siguiente.
+        </Text>
+        <View style={styles.modeRow}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginBottom: 0, borderColor: colors.border, color: colors.text, backgroundColor: colors.inputBg }]}
+            placeholder="Ej: 20"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="number-pad"
+            value={statementDayInput}
+            onChangeText={setStatementDayInput}
+          />
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.green, paddingHorizontal: 16 }]}
+            onPress={() => {
+              const day = parseInt(statementDayInput, 10);
+              if (!day || day < 1 || day > 31) {
+                return Alert.alert('Error', 'Ingresa un día entre 1 y 31');
+              }
+              updateStatementDayMutation.mutate(day);
+            }}
+            disabled={updateStatementDayMutation.isPending}
+          >
+            <Text style={styles.actionBtnText}>
+              {updateStatementDayMutation.isPending ? '...' : 'Guardar'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Unified movement */}

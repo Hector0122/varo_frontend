@@ -28,6 +28,7 @@ export default function DashboardScreen() {
   const [debtName, setDebtName] = useState('');
   const [debtTotal, setDebtTotal] = useState('');
   const [debtDueDate, setDebtDueDate] = useState('');
+  const [debtStatementDay, setDebtStatementDay] = useState('');
   const [historyDebtId, setHistoryDebtId] = useState<string | null>(null);
   const [historyDebtName, setHistoryDebtName] = useState('');
   const { data: transactions, isLoading: txLoading, isError: txError, refetch: txRefetch } = useQuery<Transaction[]>({
@@ -76,19 +77,23 @@ export default function DashboardScreen() {
 
   const createDebtMutation = useMutation({
     mutationFn: async () => {
+      const statementDay = parseInt(debtStatementDay, 10);
       const res = await api.post('/debts', {
         name: debtName,
         totalAmount: parseFloat(debtTotal),
         dueDate: debtDueDate || undefined,
+        statementDay: statementDay >= 1 && statementDay <= 31 ? statementDay : undefined,
       });
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-spending'] });
       setDebtModalVisible(false);
       setDebtName('');
       setDebtTotal('');
       setDebtDueDate('');
+      setDebtStatementDay('');
       showToast('Deuda creada');
     },
     onError: (err: any) => {
@@ -189,6 +194,8 @@ export default function DashboardScreen() {
                 debt={debt}
                 compact
                 monthlySpending={spending?.monthlySpending}
+                periodStart={spending?.periodStart}
+                periodEnd={spending?.periodEnd}
                 onHistory={() => {
                   setHistoryDebtId(debt.id);
                   setHistoryDebtName(debt.name);
@@ -246,6 +253,16 @@ export default function DashboardScreen() {
               onChangeText={setDebtDueDate}
             />
 
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Día de corte (opcional)</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.inputBg }]}
+              placeholder="Ej: 20"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
+              value={debtStatementDay}
+              onChangeText={setDebtStatementDay}
+            />
+
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: colors.bgCard }]}
@@ -254,6 +271,7 @@ export default function DashboardScreen() {
                   setDebtName('');
                   setDebtTotal('');
                   setDebtDueDate('');
+                  setDebtStatementDay('');
                 }}
               >
                 <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Cancelar</Text>

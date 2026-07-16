@@ -9,9 +9,14 @@ interface Props {
   onPress?: () => void;
   onHistory?: () => void;
   monthlySpending?: number;
+  periodStart?: string;
+  periodEnd?: string;
 }
 
-export default function DebtCard({ debt, compact, onPress, onHistory, monthlySpending }: Props) {
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+export default function DebtCard({ debt, compact, onPress, onHistory, monthlySpending, periodStart, periodEnd }: Props) {
   const { colors } = useTheme();
   const paid = Number(debt.totalAmount) - Number(debt.currentAmount);
   const progress = Number(debt.totalAmount) > 0 ? (paid / Number(debt.totalAmount)) * 100 : 0;
@@ -44,7 +49,9 @@ export default function DebtCard({ debt, compact, onPress, onHistory, monthlySpe
       )}
       {monthlySpending !== undefined && monthlySpending > 0 && (
         <Text style={[styles.monthlySpending, { color: colors.textMuted }]}>
-          💳 Gasto mensual: ${monthlySpending.toLocaleString()}
+          💳 Gasto del corte
+          {periodStart && periodEnd ? ` (${shortDate(periodStart)} - ${shortDate(periodEnd)})` : ''}: $
+          {monthlySpending.toLocaleString()}
         </Text>
       )}
     </View>
