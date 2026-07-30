@@ -185,6 +185,11 @@ export default function DebtDetailScreen() {
       {/* Unified movement */}
       <View style={[styles.actionCard, { backgroundColor: colors.bgCard }]}>
         <Text style={[styles.actionTitle, { color: colors.text }]}>Movimiento</Text>
+        <Text style={[styles.autoLogHint, { color: colors.textTertiary }]}>
+          {actionMode === 'pay'
+            ? '🔗 Un pago se registra automáticamente como gasto — no necesitas agregarlo también en Movimientos.'
+            : 'Aumentar la deuda no genera un movimiento; si ya gastaste ese dinero, regístralo por separado en Movimientos.'}
+        </Text>
         <View style={styles.modeRow}>
           <TouchableOpacity
             style={[
@@ -354,6 +359,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  autoLogHint: {
+    fontSize: 12,
+    marginBottom: 12,
   },
   modeRow: {
     flexDirection: 'row',

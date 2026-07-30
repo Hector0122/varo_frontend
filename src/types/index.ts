@@ -81,6 +81,16 @@ export interface DebtPayment {
   createdAt: string;
 }
 
+export interface GoalContribution {
+  id: string;
+  goalId: string;
+  amount: number;
+  type: 'ADD' | 'WITHDRAW';
+  note?: string | null;
+  date: string;
+  createdAt: string;
+}
+
 export interface MonthlySpendingEntry {
   debtId: string;
   monthlySpending: number;

@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import ForecastWidget from '../components/ForecastWidget';
 import TrendBadge from '../components/TrendBadge';
 import LoadingScreen from '../components/LoadingScreen';
+import GoalContributionHistoryModal from '../components/GoalContributionHistoryModal';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -41,6 +42,7 @@ export default function GoalDetailScreen() {
   const [savingAmount, setSavingAmount] = useState('');
   const [allocInput, setAllocInput] = useState('');
   const [editingAlloc, setEditingAlloc] = useState(false);
+  const [historyVisible, setHistoryVisible] = useState(false);
 
   const updateMutation = useMutation({
     mutationFn: async (amount: number) => {
@@ -180,6 +182,11 @@ export default function GoalDetailScreen() {
 
       <View style={[styles.addSection, { borderTopColor: colors.border }]}>
         <Text style={[styles.addTitle, { color: colors.text }]}>Ahorro</Text>
+        <Text style={[styles.autoLogHint, { color: colors.textTertiary }]}>
+          {savingMode === 'add'
+            ? '🔗 Agregar ahorro se registra automáticamente como gasto — no necesitas agregarlo también en Movimientos.'
+            : '🔗 Retirar ahorro se registra automáticamente como ingreso.'}
+        </Text>
         <View style={styles.modeRow}>
           <TouchableOpacity
             style={[
@@ -234,7 +241,23 @@ export default function GoalDetailScreen() {
               : 'Retirar ahorro'}
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.historyBtn, { borderColor: colors.border }]}
+          onPress={() => setHistoryVisible(true)}
+        >
+          <Text style={[styles.historyBtnText, { color: colors.green }]}>
+            📋 Ver historial de ahorro
+          </Text>
+        </TouchableOpacity>
       </View>
+
+      <GoalContributionHistoryModal
+        visible={historyVisible}
+        goalId={goalId}
+        goalName={goal.name}
+        onClose={() => setHistoryVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -352,6 +375,21 @@ const styles = StyleSheet.create({
   },
   textWhite: {
     color: '#fff',
+  },
+  autoLogHint: {
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  historyBtn: {
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  historyBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   allocSmallBtn: {
     paddingHorizontal: 12,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { isLinkedCategory } from '../constants/systemCategories';
 import type { Transaction } from '../types';
 
 interface Props {
@@ -12,11 +13,19 @@ export default function TransactionItem({ transaction }: Props) {
   const isIncome = transaction.type === 'INCOME';
   const color = isIncome ? colors.green : colors.red;
   const sign = isIncome ? '+' : '-';
+  const linked = isLinkedCategory(transaction.category);
 
   return (
     <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
       <View style={styles.info}>
-        <Text style={[styles.category, { color: colors.text }]}>{transaction.category}</Text>
+        <View style={styles.categoryRow}>
+          <Text style={[styles.category, { color: colors.text }]}>{transaction.category}</Text>
+          {linked && (
+            <View style={[styles.linkedBadge, { backgroundColor: colors.bgSecondary }]}>
+              <Text style={[styles.linkedBadgeText, { color: colors.textSecondary }]}>🔗 auto</Text>
+            </View>
+          )}
+        </View>
         <Text style={[styles.note, { color: colors.textTertiary }]}>{transaction.note || ''}</Text>
         <Text style={[styles.date, { color: colors.textMuted }]}>{new Date(transaction.date).toLocaleDateString()}</Text>
       </View>
@@ -38,9 +47,23 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
   },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   category: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  linkedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  linkedBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   note: {
     fontSize: 12,

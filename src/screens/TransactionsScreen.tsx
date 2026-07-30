@@ -20,6 +20,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { api } from '../services/api';
+import { isLinkedCategory } from '../constants/systemCategories';
 import TransactionItem from '../components/TransactionItem';
 import TransactionForm from '../components/TransactionForm';
 import LoadingScreen from '../components/LoadingScreen';
@@ -340,14 +341,31 @@ export default function TransactionsScreen() {
     outputRange: ['0deg', '45deg'],
   });
 
+  const confirmDeleteLinked = (tx: Transaction) => {
+    Alert.alert(
+      'Movimiento vinculado',
+      'Este movimiento se generó automáticamente desde una deuda o meta. Eliminarlo también revertirá ese saldo. ¿Eliminar de todas formas?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => deleteMutation.mutate(tx.id),
+        },
+      ],
+    );
+  };
+
   const showActionMenu = (tx: Transaction) => {
+    const linked = isLinkedCategory(tx.category);
     Alert.alert('Movimiento', `${tx.category} - $${tx.amount}`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Editar', onPress: () => openEdit(tx) },
       {
         text: 'Eliminar',
         style: 'destructive',
-        onPress: () => deleteMutation.mutate(tx.id),
+        onPress: () =>
+          linked ? confirmDeleteLinked(tx) : deleteMutation.mutate(tx.id),
       },
     ]);
   };
@@ -722,6 +740,12 @@ export default function TransactionsScreen() {
               <Text style={[styles.modalTitle, { color: colors.text }]}>
                 Editar movimiento
               </Text>
+              {editingTransaction && isLinkedCategory(editingTransaction.category) && (
+                <Text style={[styles.linkedWarning, { color: colors.textSecondary }]}>
+                  🔗 Este movimiento se generó automáticamente desde una deuda
+                  o meta. Cambiar el monto también ajustará ese saldo.
+                </Text>
+              )}
               <TransactionForm
                 control={control}
                 selectedType={selectedType}
@@ -973,6 +997,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
+  },
+  linkedWarning: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 12,
   },
   label: {
     fontSize: 13,
