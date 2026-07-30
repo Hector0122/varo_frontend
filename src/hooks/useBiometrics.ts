@@ -8,8 +8,6 @@ const PIN_KEY = 'appPin';
 export function useBiometrics() {
   const [available, setAvailable] = useState<boolean>(false);
   const [enabled, setEnabled] = useState<boolean>(false);
-  const [hasPin, setHasPin] = useState<boolean>(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const init = async () => {
@@ -20,13 +18,8 @@ export function useBiometrics() {
 
         const enabledRaw = await AsyncStorage.getItem(BIOMETRICS_ENABLED_KEY);
         setEnabled(enabledRaw === 'true');
-
-        const pinRaw = await AsyncStorage.getItem(PIN_KEY);
-        setHasPin(!!pinRaw);
       } catch {
         setAvailable(false);
-      } finally {
-        setLoading(false);
       }
     };
     init();
@@ -52,12 +45,10 @@ export function useBiometrics() {
     await AsyncStorage.removeItem(BIOMETRICS_ENABLED_KEY);
     await AsyncStorage.removeItem(PIN_KEY);
     setEnabled(false);
-    setHasPin(false);
   }, []);
 
   const setPin = useCallback(async (pin: string) => {
     await AsyncStorage.setItem(PIN_KEY, pin);
-    setHasPin(true);
   }, []);
 
   const verifyPin = useCallback(async (pin: string) => {
@@ -68,8 +59,6 @@ export function useBiometrics() {
   return {
     available,
     enabled,
-    hasPin,
-    loading,
     promptBiometric,
     enableBiometrics,
     disableBiometrics,

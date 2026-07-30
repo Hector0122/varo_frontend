@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Controller, Control } from 'react-hook-form';
 import { useTheme } from '../theme/ThemeContext';
+import DateField from './DateField';
 import type { Category } from '../types';
 
 interface TransactionFormValues {
@@ -225,21 +226,7 @@ export default function TransactionForm({
         name="date"
         rules={{ required: true }}
         render={({ field: { onChange, value } }) => (
-          <>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Fecha
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                { borderColor: colors.border, color: colors.text },
-              ]}
-              placeholderTextColor={colors.textMuted}
-              placeholder="YYYY-MM-DD"
-              value={value}
-              onChangeText={onChange}
-            />
-          </>
+          <DateField value={value} onChange={onChange} />
         )}
       />
 

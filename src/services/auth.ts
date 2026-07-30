@@ -21,6 +21,3 @@ export const logout = async () => {
   await AsyncStorage.removeItem('refreshToken');
 };
 
-export const getToken = async () => {
-  return AsyncStorage.getItem('accessToken');
-};

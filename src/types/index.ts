@@ -1,8 +1,3 @@
-export interface User {
-  id: string;
-  email: string;
-}
-
 export interface Transaction {
   id: string;
   userId: string;

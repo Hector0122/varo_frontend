@@ -23,6 +23,7 @@ import { api } from '../services/api';
 import { isLinkedCategory } from '../constants/systemCategories';
 import TransactionItem from '../components/TransactionItem';
 import TransactionForm from '../components/TransactionForm';
+import DateField from '../components/DateField';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
@@ -209,7 +210,7 @@ export default function TransactionsScreen() {
       category: data.category,
       note: data.note || undefined,
       type: data.type,
-      date: new Date(data.date).toISOString(),
+      date: data.date,
     });
   };
 
@@ -222,7 +223,7 @@ export default function TransactionsScreen() {
         category: data.category,
         note: data.note || undefined,
         type: data.type,
-        date: new Date(data.date).toISOString(),
+        date: data.date,
       },
     });
   };
@@ -309,7 +310,7 @@ export default function TransactionsScreen() {
       category: scanCategory,
       note: scanNote || undefined,
       type: scanType,
-      date: new Date(scanDate).toISOString(),
+      date: scanDate,
     });
     setScanModalVisible(false);
     setScanAmount('');
@@ -829,19 +830,7 @@ export default function TransactionsScreen() {
                 onChangeText={setScanNote}
               />
 
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Fecha
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: colors.border, color: colors.text },
-                ]}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.textMuted}
-                value={scanDate}
-                onChangeText={setScanDate}
-              />
+              <DateField value={scanDate} onChange={setScanDate} />
 
               <Text style={[styles.label, { color: colors.textSecondary }]}>
                 Tipo

@@ -9,6 +9,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import DebtPaymentHistoryModal from '../components/DebtPaymentHistoryModal';
 import StatementDayPicker from '../components/StatementDayPicker';
+import DateField from '../components/DateField';
 import type { Debt } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -26,6 +27,9 @@ export default function DebtDetailScreen() {
   const [actionMode, setActionMode] = useState<'pay' | 'add'>('pay');
   const [note, setNote] = useState('');
   const [installments, setInstallments] = useState('1');
+  const [movementDate, setMovementDate] = useState(
+    new Date().toISOString().split('T')[0],
+  );
   const [historyVisible, setHistoryVisible] = useState(false);
   const [statementDay, setStatementDay] = useState<number | null>(null);
 
@@ -37,9 +41,16 @@ export default function DebtDetailScreen() {
     },
   });
 
+  const resetMovementDate = () =>
+    setMovementDate(new Date().toISOString().split('T')[0]);
+
   const payMutation = useMutation({
     mutationFn: async (amount: number) => {
-      const res = await api.post(`/debts/${debtId}/pay`, { amount, ...(note && { note }) });
+      const res = await api.post(`/debts/${debtId}/pay`, {
+        amount,
+        ...(note && { note }),
+        date: movementDate,
+      });
       return res.data;
     },
     onSuccess: () => {
@@ -47,6 +58,7 @@ export default function DebtDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       setAmount('');
       setNote('');
+      resetMovementDate();
       showToast('Pago registrado');
     },
     onError: (err: any) => {
@@ -57,7 +69,12 @@ export default function DebtDetailScreen() {
   const addMutation = useMutation({
     mutationFn: async (amount: number) => {
       const inst = parseInt(installments, 10) || 1;
-      const res = await api.post(`/debts/${debtId}/add`, { amount, ...(note && { note }), installments: inst });
+      const res = await api.post(`/debts/${debtId}/add`, {
+        amount,
+        ...(note && { note }),
+        installments: inst,
+        date: movementDate,
+      });
       return res.data;
     },
     onSuccess: () => {
@@ -66,6 +83,7 @@ export default function DebtDetailScreen() {
       setAmount('');
       setNote('');
       setInstallments('1');
+      resetMovementDate();
       showToast('Monto agregado a la deuda');
     },
     onError: (err: any) => {
@@ -235,6 +253,7 @@ export default function DebtDetailScreen() {
           value={note}
           onChangeText={setNote}
         />
+        <DateField value={movementDate} onChange={setMovementDate} />
         {actionMode === 'add' && (
           <TextInput
             style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.inputBg }]}

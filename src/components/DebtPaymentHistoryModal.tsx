@@ -45,7 +45,7 @@ export default function DebtPaymentHistoryModal({ visible, debtId, debtName, onC
                         {item.type === 'PAYMENT' ? '💰 Pago' : '📈 Aumento'}
                       </Text>
                       <Text style={[styles.rowDate, { color: colors.textMuted }]}>
-                        {new Date(item.createdAt).toLocaleDateString()}
+                        {new Date(item.purchaseDate ?? item.createdAt).toLocaleDateString()}
                       </Text>
                       {item.note && (
                         <Text style={[styles.rowNote, { color: colors.textTertiary }]} numberOfLines={2}>
