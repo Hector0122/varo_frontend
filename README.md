@@ -4,17 +4,17 @@ Aplicación móvil de seguimiento financiero personal. Construida con React Nati
 
 ## Stack
 
-| Capa | Tecnología | Versión |
-|------|-----------|---------|
-| Framework | React Native | 0.85.3 |
-| Navegación | React Navigation (Native Stack + Bottom Tabs) | 7.x |
-| Estado Server | TanStack Query | 5.x |
-| Formularios | React Hook Form | 7.x |
-| HTTP | Axios | 1.x |
-| Auth | AsyncStorage + JWT interceptors | - |
-| Theming | React Context + useColorScheme | - |
-| Image Picker | react-native-image-picker | - |
-| Widget Android | react-native-android-widget | 0.20.3 |
+| Capa           | Tecnología                                    | Versión |
+| -------------- | --------------------------------------------- | ------- |
+| Framework      | React Native                                  | 0.85.3  |
+| Navegación     | React Navigation (Native Stack + Bottom Tabs) | 7.x     |
+| Estado Server  | TanStack Query                                | 5.x     |
+| Formularios    | React Hook Form                               | 7.x     |
+| HTTP           | Axios                                         | 1.x     |
+| Auth           | AsyncStorage + JWT interceptors               | -       |
+| Theming        | React Context + useColorScheme                | -       |
+| Image Picker   | react-native-image-picker                     | -       |
+| Widget Android | react-native-android-widget                   | 0.20.3  |
 
 ## Características
 
@@ -66,8 +66,6 @@ API_BASE_URL=http://localhost:3000
 # Para dispositivo físico (usa tu IP local)
 API_BASE_URL=http://192.168.1.100:3000
 
-# Para producción (Railway)
-API_BASE_URL=https://varobackend-production.up.railway.app
 ```
 
 ### 2. Generar `src/config.ts`
@@ -83,11 +81,13 @@ Esto genera `src/config.ts` desde `.env`. **No commitees `src/config.ts`** — y
 En React Native, **no hay secretos verdaderos en el frontend**. Todo el bundle JS se envía al dispositivo y es visible si se descompila el APK/IPA.
 
 **Lo que NUNCA debe ir en el frontend:**
+
 - ❌ API keys de Groq o servicios de pago
 - ❌ Tokens de servicios de terceros
 - ❌ Contraseñas o claves de firma
 
 **Lo que SÍ puede ir en el frontend:**
+
 - ✅ `API_BASE_URL` (es pública, cualquiera puede ver a qué servidor habla la app)
 - ✅ Configuración de UI (colores, feature flags)
 - ✅ URLs públicas
@@ -108,6 +108,12 @@ npm start
 
 # Android (emulador o dispositivo)
 npm run android
+
+# Android Release 
+cd android && ./gradlew assembleRelease 
+
+# Instalar Release
+adb install -r app/build/outputs/apk/release/app-release.apk
 
 # iOS (solo macOS)
 cd ios && bundle exec pod install && cd ..
