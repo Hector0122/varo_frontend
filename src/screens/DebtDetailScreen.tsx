@@ -4,13 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
-import { api } from '../services/api';
+import { objectivesApi } from '../services/objectives';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import DebtPaymentHistoryModal from '../components/DebtPaymentHistoryModal';
 import StatementDayPicker from '../components/StatementDayPicker';
 import DateField from '../components/DateField';
-import type { Debt } from '../types';
+import type { FinancialObjective } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type DebtDetailRouteProp = RouteProp<RootStackParamList, 'DebtDetail'>;
@@ -33,26 +33,22 @@ export default function DebtDetailScreen() {
   const [historyVisible, setHistoryVisible] = useState(false);
   const [statementDay, setStatementDay] = useState<number | null>(null);
 
-  const { data: debt, isLoading, isError, refetch } = useQuery<Debt>({
+  const { data: debt, isLoading, isError, refetch } = useQuery<FinancialObjective>({
     queryKey: ['debt', debtId],
-    queryFn: async () => {
-      const res = await api.get(`/debts/${debtId}`);
-      return res.data;
-    },
+    queryFn: () => objectivesApi.get(debtId),
   });
 
   const resetMovementDate = () =>
     setMovementDate(new Date().toISOString().split('T')[0]);
 
   const payMutation = useMutation({
-    mutationFn: async (amount: number) => {
-      const res = await api.post(`/debts/${debtId}/pay`, {
+    mutationFn: (amount: number) =>
+      objectivesApi.addEntry(debtId, {
+        type: 'PAYMENT',
         amount,
         ...(note && { note }),
         date: movementDate,
-      });
-      return res.data;
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debt', debtId] });
       queryClient.invalidateQueries({ queryKey: ['debts'] });
@@ -67,15 +63,15 @@ export default function DebtDetailScreen() {
   });
 
   const addMutation = useMutation({
-    mutationFn: async (amount: number) => {
+    mutationFn: (amount: number) => {
       const inst = parseInt(installments, 10) || 1;
-      const res = await api.post(`/debts/${debtId}/add`, {
+      return objectivesApi.addEntry(debtId, {
+        type: 'INCREASE',
         amount,
         ...(note && { note }),
         installments: inst,
         date: movementDate,
       });
-      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debt', debtId] });
@@ -92,10 +88,8 @@ export default function DebtDetailScreen() {
   });
 
   const updateStatementDayMutation = useMutation({
-    mutationFn: async (day: number) => {
-      const res = await api.patch(`/debts/${debtId}`, { statementDay: day });
-      return res.data;
-    },
+    mutationFn: (day: number) =>
+      objectivesApi.update(debtId, { statementDay: day }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debt', debtId] });
       queryClient.invalidateQueries({ queryKey: ['debts'] });
@@ -108,9 +102,7 @@ export default function DebtDetailScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async () => {
-      await api.delete(`/debts/${debtId}`);
-    },
+    mutationFn: () => objectivesApi.remove(debtId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       showToast('Deuda eliminada');
@@ -141,8 +133,8 @@ export default function DebtDetailScreen() {
   if (isError) return <ErrorMessage message="No se pudo cargar la deuda." onRetry={refetch} />;
   if (!debt) return null;
 
-  const paid = Number(debt.totalAmount) - Number(debt.currentAmount);
-  const progress = Number(debt.totalAmount) > 0 ? (paid / Number(debt.totalAmount)) * 100 : 0;
+  const paid = Number(debt.targetAmount) - Number(debt.currentAmount);
+  const progress = Number(debt.targetAmount) > 0 ? (paid / Number(debt.targetAmount)) * 100 : 0;
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -159,7 +151,7 @@ export default function DebtDetailScreen() {
           <View style={styles.totalCol}>
             <Text style={[styles.label, { color: colors.textTertiary }]}>Total</Text>
             <Text style={[styles.total, { color: colors.text }]}>
-              ${Number(debt.totalAmount).toLocaleString()}
+              ${Number(debt.targetAmount).toLocaleString()}
             </Text>
           </View>
         </View>

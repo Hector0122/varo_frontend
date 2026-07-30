@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import type { Goal } from '../types';
+import type { FinancialObjective } from '../types';
 
 interface Props {
-  goal: Goal;
+  goal: FinancialObjective;
 }
 
 export default function GoalCard({ goal }: Props) {

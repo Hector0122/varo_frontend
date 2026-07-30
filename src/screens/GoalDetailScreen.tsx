@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { api } from '../services/api';
+import { objectivesApi } from '../services/objectives';
 import ForecastWidget from '../components/ForecastWidget';
 import TrendBadge from '../components/TrendBadge';
 import LoadingScreen from '../components/LoadingScreen';
@@ -10,7 +10,7 @@ import GoalContributionHistoryModal from '../components/GoalContributionHistoryM
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import type { Goal, Forecast } from '../types';
+import type { FinancialObjective, Forecast } from '../types';
 
 type GoalDetailRouteProp = RouteProp<RootStackParamList, 'GoalDetail'>;
 
@@ -21,20 +21,14 @@ export default function GoalDetailScreen() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
-  const { data: goal, isLoading: goalLoading } = useQuery<Goal>({
+  const { data: goal, isLoading: goalLoading } = useQuery<FinancialObjective>({
     queryKey: ['goal', goalId],
-    queryFn: async () => {
-      const res = await api.get(`/goals/${goalId}`);
-      return res.data;
-    },
+    queryFn: () => objectivesApi.get(goalId),
   });
 
   const { data: forecast, isLoading: forecastLoading } = useQuery<Forecast>({
     queryKey: ['forecast', goalId],
-    queryFn: async () => {
-      const res = await api.get(`/forecast/${goalId}`);
-      return res.data;
-    },
+    queryFn: () => objectivesApi.getForecast(goalId),
     enabled: !!goalId,
   });
 
@@ -45,10 +39,8 @@ export default function GoalDetailScreen() {
   const [historyVisible, setHistoryVisible] = useState(false);
 
   const updateMutation = useMutation({
-    mutationFn: async (amount: number) => {
-      const res = await api.post(`/goals/${goalId}/add-savings`, { amount });
-      return res.data;
-    },
+    mutationFn: (amount: number) =>
+      objectivesApi.addEntry(goalId, { type: 'ADD', amount }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
@@ -62,10 +54,8 @@ export default function GoalDetailScreen() {
   });
 
   const withdrawMutation = useMutation({
-    mutationFn: async (amount: number) => {
-      const res = await api.post(`/goals/${goalId}/withdraw-savings`, { amount });
-      return res.data;
-    },
+    mutationFn: (amount: number) =>
+      objectivesApi.addEntry(goalId, { type: 'WITHDRAW', amount }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
@@ -79,10 +69,8 @@ export default function GoalDetailScreen() {
   });
 
   const allocMutation = useMutation({
-    mutationFn: async (savingAllocation: number) => {
-      const res = await api.patch(`/goals/${goalId}`, { savingAllocation });
-      return res.data;
-    },
+    mutationFn: (savingAllocation: number) =>
+      objectivesApi.update(goalId, { savingAllocation }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goal', goalId] });
       queryClient.invalidateQueries({ queryKey: ['forecast', goalId] });

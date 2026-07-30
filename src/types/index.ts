@@ -92,3 +92,31 @@ export interface MonthlySpendingEntry {
   periodStart: string;
   periodEnd: string;
 }
+
+export type FinancialObjectiveType = 'SAVING_GOAL' | 'DEBT_PAYOFF';
+
+export interface FinancialObjective {
+  id: string;
+  userId: string;
+  type: FinancialObjectiveType;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  savingAllocation: number | null;
+  dueDate?: string | null;
+  statementDay: number | null;
+  createdAt: string;
+}
+
+export type ObjectiveEntryType = 'ADD' | 'WITHDRAW' | 'PAYMENT' | 'INCREASE';
+
+export interface ObjectiveEntry {
+  id: string;
+  objectiveId: string;
+  amount: number;
+  type: ObjectiveEntryType;
+  note?: string | null;
+  installments?: number;
+  purchaseDate: string;
+  createdAt: string;
+}

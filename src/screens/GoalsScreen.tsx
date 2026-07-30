@@ -17,12 +17,12 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
-import { api } from '../services/api';
+import { objectivesApi } from '../services/objectives';
 import GoalCard from '../components/GoalCard';
 import LoadingScreen from '../components/LoadingScreen';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
-import type { Goal } from '../types';
+import type { FinancialObjective } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type GoalsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -41,23 +41,17 @@ export default function GoalsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: goals, isLoading } = useQuery<Goal[]>({
+  const { data: goals, isLoading } = useQuery<FinancialObjective[]>({
     queryKey: ['goals'],
-    queryFn: async () => {
-      const res = await api.get('/goals');
-      return res.data;
-    },
+    queryFn: () => objectivesApi.list('SAVING_GOAL'),
   });
 
   const createMutation = useMutation({
-    mutationFn: async (payload: {
+    mutationFn: (payload: {
       name: string;
       targetAmount: number;
       savingAllocation: number;
-    }) => {
-      const res = await api.post('/goals', payload);
-      return res.data;
-    },
+    }) => objectivesApi.create({ type: 'SAVING_GOAL', ...payload }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       setModalVisible(false);
@@ -73,9 +67,7 @@ export default function GoalsScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/goals/${id}`);
-    },
+    mutationFn: (id: string) => objectivesApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
       queryClient.invalidateQueries({ queryKey: ['forecast'] });

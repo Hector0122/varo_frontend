@@ -6,6 +6,7 @@ import { requestWidgetUpdate } from 'react-native-android-widget';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../services/api';
+import { objectivesApi } from '../services/objectives';
 import SummaryCard from '../components/SummaryCard';
 import ForecastWidget from '../components/ForecastWidget';
 import DebtCard from '../components/DebtCard';
@@ -16,7 +17,7 @@ import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import GoalWidget, { EmptyGoalWidget, type GoalWidgetData } from '../widget/GoalWidget';
-import type { Transaction, Goal, Forecast, Debt, MonthlySpendingEntry } from '../types';
+import type { Transaction, FinancialObjective, Forecast, MonthlySpendingEntry } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 export default function DashboardScreen() {
@@ -40,52 +41,38 @@ export default function DashboardScreen() {
     },
   });
 
-  const { data: goals, isLoading: goalsLoading, isError: goalsError, refetch: goalsRefetch } = useQuery<Goal[]>({
+  const { data: goals, isLoading: goalsLoading, isError: goalsError, refetch: goalsRefetch } = useQuery<FinancialObjective[]>({
     queryKey: ['goals'],
-    queryFn: async () => {
-      const res = await api.get('/goals');
-      return res.data;
-    },
+    queryFn: () => objectivesApi.list('SAVING_GOAL'),
   });
 
   const mainGoal = goals?.[0];
 
-  const { data: forecast, isLoading: forecastLoading } = useQuery<Forecast>({
+  const { data: forecast, isLoading: forecastLoading } = useQuery<Forecast | null>({
     queryKey: ['forecast', mainGoal?.id],
-    queryFn: async () => {
-      if (!mainGoal) return null;
-      const res = await api.get(`/forecast/${mainGoal.id}`);
-      return res.data;
-    },
+    queryFn: () => (mainGoal ? objectivesApi.getForecast(mainGoal.id) : null),
     enabled: !!mainGoal,
   });
 
-  const { data: debts, refetch: debtsRefetch } = useQuery<Debt[]>({
+  const { data: debts, refetch: debtsRefetch } = useQuery<FinancialObjective[]>({
     queryKey: ['debts'],
-    queryFn: async () => {
-      const res = await api.get('/debts');
-      return res.data;
-    },
+    queryFn: () => objectivesApi.list('DEBT_PAYOFF'),
   });
 
   const { data: monthlySpendingData } = useQuery<MonthlySpendingEntry[]>({
     queryKey: ['monthly-spending'],
-    queryFn: async () => {
-      const res = await api.get('/debts/spending/monthly');
-      return res.data;
-    },
+    queryFn: () => objectivesApi.getMonthlySpending(),
   });
 
   const createDebtMutation = useMutation({
-    mutationFn: async () => {
-      const res = await api.post('/debts', {
+    mutationFn: () =>
+      objectivesApi.create({
+        type: 'DEBT_PAYOFF',
         name: debtName,
-        totalAmount: parseFloat(debtTotal),
+        targetAmount: parseFloat(debtTotal),
         dueDate: debtDueDate || undefined,
         statementDay: debtStatementDay,
-      });
-      return res.data;
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['debts'] });
       queryClient.invalidateQueries({ queryKey: ['monthly-spending'] });

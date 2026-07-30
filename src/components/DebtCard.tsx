@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import type { Debt } from '../types';
+import type { FinancialObjective } from '../types';
 
 interface Props {
-  debt: Debt;
+  debt: FinancialObjective;
   compact?: boolean;
   onPress?: () => void;
   onHistory?: () => void;
@@ -18,8 +18,8 @@ const shortDate = (iso: string) =>
 
 export default function DebtCard({ debt, compact, onPress, onHistory, monthlySpending, periodStart, periodEnd }: Props) {
   const { colors } = useTheme();
-  const paid = Number(debt.totalAmount) - Number(debt.currentAmount);
-  const progress = Number(debt.totalAmount) > 0 ? (paid / Number(debt.totalAmount)) * 100 : 0;
+  const paid = Number(debt.targetAmount) - Number(debt.currentAmount);
+  const progress = Number(debt.targetAmount) > 0 ? (paid / Number(debt.targetAmount)) * 100 : 0;
 
   const content = (
     <View style={[styles.card, { backgroundColor: colors.bgCard }, compact && styles.compactCard]}>
@@ -36,7 +36,7 @@ export default function DebtCard({ debt, compact, onPress, onHistory, monthlySpe
       </View>
       <View style={styles.bottom}>
         <Text style={[styles.amounts, { color: colors.textTertiary }, compact && styles.compactAmounts]}>
-          Pagado ${paid.toLocaleString()} de ${Number(debt.totalAmount).toLocaleString()}
+          Pagado ${paid.toLocaleString()} de ${Number(debt.targetAmount).toLocaleString()}
         </Text>
         <Text style={[styles.percent, { color: colors.red }]}>
           {Math.round(progress)}%

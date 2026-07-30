@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, FlatList, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../theme/ThemeContext';
-import { api } from '../services/api';
+import { objectivesApi } from '../services/objectives';
 import LoadingScreen from './LoadingScreen';
-import type { DebtPayment } from '../types';
+import type { ObjectiveEntry } from '../types';
 
 interface Props {
   visible: boolean;
@@ -15,12 +15,9 @@ interface Props {
 
 export default function DebtPaymentHistoryModal({ visible, debtId, debtName, onClose }: Props) {
   const { colors } = useTheme();
-  const { data: payments, isLoading } = useQuery<DebtPayment[]>({
+  const { data: payments, isLoading } = useQuery<ObjectiveEntry[]>({
     queryKey: ['debt-payments', debtId],
-    queryFn: async () => {
-      const res = await api.get(`/debts/${debtId}/payments`);
-      return res.data;
-    },
+    queryFn: () => objectivesApi.getEntries(debtId),
     enabled: visible,
   });
 

@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, FlatList, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../theme/ThemeContext';
-import { api } from '../services/api';
+import { objectivesApi } from '../services/objectives';
 import LoadingScreen from './LoadingScreen';
-import type { GoalContribution } from '../types';
+import type { ObjectiveEntry } from '../types';
 
 interface Props {
   visible: boolean;
@@ -15,12 +15,9 @@ interface Props {
 
 export default function GoalContributionHistoryModal({ visible, goalId, goalName, onClose }: Props) {
   const { colors } = useTheme();
-  const { data: contributions, isLoading } = useQuery<GoalContribution[]>({
+  const { data: contributions, isLoading } = useQuery<ObjectiveEntry[]>({
     queryKey: ['goal-contributions', goalId],
-    queryFn: async () => {
-      const res = await api.get(`/goals/${goalId}/contributions`);
-      return res.data;
-    },
+    queryFn: () => objectivesApi.getEntries(goalId),
     enabled: visible,
   });
 

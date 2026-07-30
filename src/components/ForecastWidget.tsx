@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import type { Forecast, Goal } from '../types';
+import type { Forecast, FinancialObjective } from '../types';
 
 interface Props {
   forecast: Forecast;
-  goal: Goal;
+  goal: FinancialObjective;
   compact?: boolean;
 }
 
