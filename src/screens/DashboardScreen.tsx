@@ -15,7 +15,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
-import GoalWidget, { type GoalWidgetData } from '../widget/GoalWidget';
+import GoalWidget, { EmptyGoalWidget, type GoalWidgetData } from '../widget/GoalWidget';
 import type { Transaction, Goal, Forecast, Debt, MonthlySpendingEntry } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -116,8 +116,14 @@ export default function DashboardScreen() {
         widgetName: 'GoalWidget',
         renderWidget: () => <GoalWidget data={widgetData} />,
       });
+    } else if (goals && goals.length === 0) {
+      AsyncStorage.removeItem('GoalWidget:data');
+      requestWidgetUpdate({
+        widgetName: 'GoalWidget',
+        renderWidget: () => <EmptyGoalWidget />,
+      });
     }
-  }, [mainGoal, forecast]);
+  }, [mainGoal, forecast, goals]);
 
   const totalIncome = transactions?.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;
   const totalExpense = transactions?.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;

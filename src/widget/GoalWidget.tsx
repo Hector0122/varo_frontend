@@ -108,3 +108,22 @@ export default function GoalWidget({ data }: Props) {
     </FlexWidget>
   );
 }
+
+const emptyMessage = {
+  fontSize: 13,
+  color: '#8888aa' as const,
+  marginTop: 12,
+};
+
+export function EmptyGoalWidget() {
+  return (
+    <FlexWidget style={container}>
+      <FlexWidget style={accentBar} />
+      <FlexWidget style={topRow}>
+        <TextWidget text="Varo" maxLines={1} style={goalName} />
+        <TextWidget text={`🎯`} style={badge} />
+      </FlexWidget>
+      <TextWidget text="Sin metas activas" style={emptyMessage} />
+    </FlexWidget>
+  );
+}
