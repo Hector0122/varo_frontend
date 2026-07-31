@@ -342,6 +342,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     paddingVertical: 12,
     alignItems: 'center',
+    marginTop: 12,
     marginBottom: 12,
   },
   addDebtBtnText: {
