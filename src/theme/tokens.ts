@@ -176,7 +176,8 @@ export type BrandAccent = { primary: string; accent: string };
 
 // rgba(hex, alpha) — para fondos "soft" de badges/highlights sin depender
 // de que cada app lo reinvente (Vellum ya tenía su propio accentSoft suelto).
-function hexToRgba(hex: string, alpha: number): string {
+// Exportado: úsalo también para tintes de estado (ver VaultGaming StatusBadge).
+export function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace('#', '');
   const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
   const int = parseInt(full, 16);
