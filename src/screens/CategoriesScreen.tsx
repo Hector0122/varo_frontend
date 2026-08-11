@@ -3,7 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  Button,
   Modal,
   TextInput,
   StyleSheet,
@@ -18,6 +17,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import ErrorMessage from '../components/ErrorMessage';
 import LoadingScreen from '../components/LoadingScreen';
+import Button from '../components/Button';
 import type { Category } from '../types';
 
 export default function CategoriesScreen() {
@@ -159,10 +159,11 @@ export default function CategoriesScreen() {
                 if (!newName.trim()) return;
                 createMutation.mutate({ name: newName.trim(), type: newType });
               }}
-              disabled={createMutation.isPending || !newName.trim()}
+              disabled={!newName.trim()}
+              loading={createMutation.isPending}
             />
             <View style={styles.cancelBtn}>
-              <Button title="Cancelar" onPress={() => setModalVisible(false)} color={colors.textTertiary} />
+              <Button title="Cancelar" onPress={() => setModalVisible(false)} variant="ghost" />
             </View>
             </View>
           </View>

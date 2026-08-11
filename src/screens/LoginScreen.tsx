@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   Alert,
   TouchableOpacity,
@@ -16,6 +15,7 @@ import { login } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
+import Button from '../components/Button';
 import type { AuthStackParamList } from '../navigation/AuthStack';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
@@ -116,9 +116,9 @@ export default function LoginScreen() {
       />
 
       <Button
-        title={loading ? 'Cargando...' : 'Iniciar sesión'}
+        title="Iniciar sesión"
         onPress={handleSubmit(onSubmit)}
-        disabled={loading}
+        loading={loading}
       />
 
       <TouchableOpacity

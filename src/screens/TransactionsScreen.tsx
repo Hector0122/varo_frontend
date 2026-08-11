@@ -4,7 +4,6 @@ import {
   View,
   Text,
   FlatList,
-  Button,
   Modal,
   TextInput,
   StyleSheet,
@@ -26,6 +25,7 @@ import TransactionForm from '../components/TransactionForm';
 import DateField from '../components/DateField';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
+import Button from '../components/Button';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import RNFS from 'react-native-fs';
@@ -865,13 +865,9 @@ export default function TransactionsScreen() {
               </View>
 
               <Button
-                title={
-                  createMutation.isPending
-                    ? 'Guardando...'
-                    : '✅ Confirmar y guardar'
-                }
+                title="Confirmar y guardar"
                 onPress={confirmScanned}
-                disabled={createMutation.isPending}
+                loading={createMutation.isPending}
               />
               <View style={styles.cancelBtn}>
                 <Button
@@ -884,7 +880,7 @@ export default function TransactionsScreen() {
                     setScanDate('');
                     setScanType('EXPENSE');
                   }}
-                  color={colors.textTertiary}
+                  variant="ghost"
                 />
               </View>
             </ScrollView>

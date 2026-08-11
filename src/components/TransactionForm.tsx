@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Button,
 } from 'react-native';
 import { Controller, Control } from 'react-hook-form';
 import { useTheme } from '../theme/ThemeContext';
 import DateField from './DateField';
+import Button from './Button';
 import type { Category } from '../types';
 
 interface TransactionFormValues {
@@ -230,17 +230,9 @@ export default function TransactionForm({
         )}
       />
 
-      <Button
-        title={isPending ? 'Guardando...' : submitLabel}
-        onPress={onSubmit}
-        disabled={isPending}
-      />
+      <Button title={submitLabel} onPress={onSubmit} loading={isPending} />
       <View style={styles.cancelBtn}>
-        <Button
-          title="Cancelar"
-          onPress={onCancel}
-          color={colors.textTertiary}
-        />
+        <Button title="Cancelar" onPress={onCancel} variant="ghost" />
       </View>
     </>
   );

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Button,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -14,6 +13,7 @@ import { logout } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/ThemeContext';
 import { useBiometrics } from '../hooks/useBiometrics';
+import Button from '../components/Button';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 export default function ProfileScreen() {
@@ -158,23 +158,15 @@ export default function ProfileScreen() {
             onChangeText={setPinInput}
           />
           <View style={styles.pinButtons}>
-            <Button
-              title="Cancelar"
-              onPress={() => setShowPinSetup(false)}
-              color={colors.textMuted}
-            />
-            <Button
-              title="Guardar"
-              onPress={handleSetupPin}
-              color={colors.green}
-            />
+            <Button title="Cancelar" onPress={() => setShowPinSetup(false)} variant="ghost" />
+            <Button title="Guardar" onPress={handleSetupPin} />
           </View>
         </View>
       )}
 
       <View style={styles.spacer} />
 
-      <Button title="Cerrar sesión" onPress={handleLogout} color={colors.red} />
+      <Button title="Cerrar sesión" onPress={handleLogout} variant="danger" />
     </View>
   );
 }

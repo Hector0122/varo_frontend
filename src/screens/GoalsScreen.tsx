@@ -3,7 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  Button,
   Modal,
   TextInput,
   StyleSheet,
@@ -20,6 +19,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { objectivesApi } from '../services/objectives';
 import GoalCard from '../components/GoalCard';
 import LoadingScreen from '../components/LoadingScreen';
+import Button from '../components/Button';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import type { FinancialObjective } from '../types';
@@ -232,16 +232,12 @@ export default function GoalsScreen() {
               />
 
               <Button
-                title={createMutation.isPending ? 'Guardando...' : 'Guardar'}
+                title="Guardar"
                 onPress={handleSubmit(onSubmit)}
-                disabled={createMutation.isPending}
+                loading={createMutation.isPending}
               />
               <View style={styles.cancelBtn}>
-                <Button
-                  title="Cancelar"
-                  onPress={() => setModalVisible(false)}
-                  color={colors.textTertiary}
-                />
+                <Button title="Cancelar" onPress={() => setModalVisible(false)} variant="ghost" />
               </View>
             </View>
           </View>

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useForm, Controller } from 'react-hook-form';
 import { register } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
+import Button from '../components/Button';
 
 interface RegisterForm {
   email: string;
@@ -80,7 +81,7 @@ export default function RegisterScreen() {
         )}
       />
 
-      <Button title={loading ? 'Cargando...' : 'Registrarse'} onPress={handleSubmit(onSubmit)} disabled={loading} />
+      <Button title="Registrarse" onPress={handleSubmit(onSubmit)} loading={loading} />
     </SafeAreaView>
   );
 }
