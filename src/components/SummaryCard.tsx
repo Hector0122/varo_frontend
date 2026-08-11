@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
 
 interface Props {
   title: string;
   amount: number;
   color?: string;
+  /** Nombre de icono MDI (react-native-vector-icons/MaterialCommunityIcons), no emoji — ver brand-kit/README.md#iconos */
   icon?: string;
   compact?: boolean;
 }
@@ -14,7 +16,14 @@ export default function SummaryCard({ title, amount, color, icon, compact }: Pro
   const { colors } = useTheme();
   return (
     <View style={[compact ? styles.cardCompact : styles.card, { backgroundColor: colors.bgCard }]}>
-      {icon && <Text style={compact ? styles.iconCompact : styles.icon}>{icon}</Text>}
+      {icon && (
+        <Icon
+          name={icon}
+          size={compact ? 16 : 20}
+          color={color || colors.textTertiary}
+          style={compact ? styles.iconCompact : styles.icon}
+        />
+      )}
       <Text style={[compact ? styles.titleCompact : styles.title, { color: colors.textTertiary }]}>{title}</Text>
       <Text style={[compact ? styles.amountCompact : styles.amount, { color: color || colors.text }]}>
         ${amount.toLocaleString()}
@@ -37,11 +46,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 3,
   },
   icon: {
-    fontSize: 20,
     marginBottom: 4,
   },
   iconCompact: {
-    fontSize: 16,
     marginBottom: 2,
   },
   title: {

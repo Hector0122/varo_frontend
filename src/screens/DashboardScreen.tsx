@@ -146,11 +146,11 @@ export default function DashboardScreen() {
       >
       <Text style={[styles.header, { color: colors.text }]}>Resumen</Text>
       <View style={styles.row}>
-        <SummaryCard title="Ingresos" amount={totalIncome} color={colors.green} icon="📈" compact />
-        <SummaryCard title="Gastos" amount={totalExpense} color={colors.red} icon="📉" compact />
+        <SummaryCard title="Ingresos" amount={totalIncome} color={colors.green} icon="trending-up" compact />
+        <SummaryCard title="Gastos" amount={totalExpense} color={colors.red} icon="trending-down" compact />
       </View>
       <View style={styles.row}>
-        <SummaryCard title="Ahorro neto" amount={netSaving} color={netSaving >= 0 ? colors.green : colors.red} icon="💰" compact />
+        <SummaryCard title="Ahorro neto" amount={netSaving} color={netSaving >= 0 ? colors.green : colors.red} icon="piggy-bank" compact />
       </View>
 
       {mainGoal && (

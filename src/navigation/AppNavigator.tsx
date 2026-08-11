@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -36,21 +37,21 @@ function HeaderIcons() {
   return (
     <View style={styles.headerIcons}>
       <TouchableOpacity onPress={() => navigation.navigate('Goals')} style={styles.headerBtn}>
-        <Text style={styles.headerIcon}>🎯</Text>
+        <Icon name="target" size={22} color={colors.green} />
       </TouchableOpacity>
       <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={styles.headerBtn}>
-        <Text style={[styles.headerIcon, { color: colors.text }]}>👤</Text>
+        <Icon name="account-circle-outline" size={22} color={colors.text} />
       </TouchableOpacity>
     </View>
   );
 }
 
 function HomeIcon({ color }: { color: string }) {
-  return <Text style={[styles.tabIcon, { color }]}>🏠</Text>;
+  return <Icon name="home-variant" size={20} color={color} />;
 }
 
 function CardsIcon({ color }: { color: string }) {
-  return <Text style={[styles.tabIcon, { color }]}>💳</Text>;
+  return <Icon name="credit-card-outline" size={20} color={color} />;
 }
 
 function MainTabs() {
@@ -120,11 +121,5 @@ const styles = StyleSheet.create({
   headerBtn: {
     marginLeft: 16,
     padding: 4,
-  },
-  headerIcon: {
-    fontSize: 22,
-  },
-  tabIcon: {
-    fontSize: 20,
   },
 });
