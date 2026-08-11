@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 
 interface Props {
   title: string;
@@ -19,7 +20,7 @@ export default function SummaryCard({ title, amount, color, icon, compact }: Pro
       {icon && (
         <Icon
           name={icon}
-          size={compact ? 16 : 20}
+          size={compact ? iconSize.sm : iconSize.md}
           color={color || colors.textTertiary}
           style={compact ? styles.iconCompact : styles.icon}
         />

@@ -15,6 +15,7 @@ import { login } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import Button from '../components/Button';
 import type { AuthStackParamList } from '../navigation/AuthStack';
 
@@ -107,7 +108,7 @@ export default function LoginScreen() {
             >
               <Icon
                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={20}
+                size={iconSize.md}
                 color={colors.textSecondary}
               />
             </TouchableOpacity>

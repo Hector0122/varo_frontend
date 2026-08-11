@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import DashboardScreen from '../screens/DashboardScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import GoalsScreen from '../screens/GoalsScreen';
@@ -37,21 +38,21 @@ function HeaderIcons() {
   return (
     <View style={styles.headerIcons}>
       <TouchableOpacity onPress={() => navigation.navigate('Goals')} style={styles.headerBtn}>
-        <Icon name="target" size={22} color={colors.green} />
+        <Icon name="target" size={iconSize.md} color={colors.green} />
       </TouchableOpacity>
       <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={styles.headerBtn}>
-        <Icon name="account-circle-outline" size={22} color={colors.text} />
+        <Icon name="account-circle-outline" size={iconSize.md} color={colors.text} />
       </TouchableOpacity>
     </View>
   );
 }
 
 function HomeIcon({ color }: { color: string }) {
-  return <Icon name="home-variant" size={20} color={color} />;
+  return <Icon name="home-variant" size={iconSize.md} color={color} />;
 }
 
 function CardsIcon({ color }: { color: string }) {
-  return <Icon name="credit-card-outline" size={20} color={color} />;
+  return <Icon name="credit-card-outline" size={iconSize.md} color={color} />;
 }
 
 function MainTabs() {
