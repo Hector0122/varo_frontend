@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
-import { iconSize } from '../theme/tokens';
+import { iconSize, fontFamily } from '../theme/tokens';
 
 interface Props {
   title: string;
@@ -53,23 +53,25 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   title: {
+    fontFamily: fontFamily.mono,
     fontSize: 12,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   titleCompact: {
+    fontFamily: fontFamily.mono,
     fontSize: 10,
     marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   amount: {
+    fontFamily: fontFamily.mono,
     fontSize: 18,
-    fontWeight: 'bold',
   },
   amountCompact: {
+    fontFamily: fontFamily.mono,
     fontSize: 15,
-    fontWeight: 'bold',
   },
 });

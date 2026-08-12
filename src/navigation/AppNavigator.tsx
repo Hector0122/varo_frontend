@@ -5,7 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
-import { iconSize } from '../theme/tokens';
+import { iconSize, fontFamily } from '../theme/tokens';
 import DashboardScreen from '../screens/DashboardScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import GoalsScreen from '../screens/GoalsScreen';
@@ -95,6 +95,7 @@ export default function AppNavigator() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.bgCard },
         headerTintColor: colors.text,
+        headerTitleStyle: { fontFamily: fontFamily.mono, fontSize: 17 },
       }}
     >
       <Stack.Screen

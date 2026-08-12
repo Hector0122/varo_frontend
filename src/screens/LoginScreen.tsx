@@ -15,7 +15,7 @@ import { login } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { iconSize } from '../theme/tokens';
+import { iconSize, type as typeScale } from '../theme/tokens';
 import Button from '../components/Button';
 import type { AuthStackParamList } from '../navigation/AuthStack';
 
@@ -57,7 +57,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Varo</Text>
+      <Text style={[styles.title, typeScale.display, { color: colors.text }]}>Varo</Text>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         Cada peso cuenta
       </Text>
@@ -141,8 +141,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
   },
