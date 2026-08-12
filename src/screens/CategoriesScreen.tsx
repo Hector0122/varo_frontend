@@ -12,8 +12,10 @@ import {
   Platform,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import { useToast } from '../hooks/useToast';
 import ErrorMessage from '../components/ErrorMessage';
 import LoadingScreen from '../components/LoadingScreen';
@@ -110,7 +112,7 @@ export default function CategoriesScreen() {
                 ]);
               }}
             >
-              <Text style={[styles.deleteIcon, { color: colors.red }]}>✕</Text>
+              <Icon name="close" size={iconSize.md} color={colors.red} style={styles.deleteIcon} />
             </TouchableOpacity>
           </View>
         )}
@@ -198,7 +200,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   deleteIcon: {
-    fontSize: 18,
     padding: 8,
   },
   empty: {

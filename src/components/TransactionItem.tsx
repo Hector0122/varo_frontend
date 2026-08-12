@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import { isLinkedCategory } from '../constants/systemCategories';
 import type { Transaction } from '../types';
 
@@ -22,7 +24,9 @@ export default function TransactionItem({ transaction }: Props) {
           <Text style={[styles.category, { color: colors.text }]}>{transaction.category}</Text>
           {linked && (
             <View style={[styles.linkedBadge, { backgroundColor: colors.bgSecondary }]}>
-              <Text style={[styles.linkedBadgeText, { color: colors.textSecondary }]}>🔗 auto</Text>
+              <Text style={[styles.linkedBadgeText, { color: colors.textSecondary }]}>
+                <Icon name="link-variant" size={iconSize.sm} color={colors.textSecondary} /> auto
+              </Text>
             </View>
           )}
         </View>

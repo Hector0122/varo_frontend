@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Animated } from 'react-native';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,9 +14,17 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { isLinkedCategory } from '../constants/systemCategories';
 import TransactionItem from '../components/TransactionItem';
@@ -28,6 +35,7 @@ import ErrorMessage from '../components/ErrorMessage';
 import Button from '../components/Button';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
+import { motion, iconSize } from '../theme/tokens';
 import RNFS from 'react-native-fs';
 import Share from 'react-native-share';
 import type { Transaction, Category } from '../types';
@@ -56,8 +64,7 @@ export default function TransactionsScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [fabMenuVisible, setFabMenuVisible] = useState(false);
-  const fabAnim = useRef(new Animated.Value(0)).current;
-  const fabRotate = useRef(new Animated.Value(0)).current;
+  const fabProgress = useSharedValue(0);
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<Transaction | null>(null);
@@ -321,26 +328,12 @@ export default function TransactionsScreen() {
   };
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(fabAnim, {
-        toValue: fabMenuVisible ? 1 : 0,
-        useNativeDriver: true,
-        tension: 80,
-        friction: 12,
-      }),
-      Animated.spring(fabRotate, {
-        toValue: fabMenuVisible ? 1 : 0,
-        useNativeDriver: true,
-        tension: 80,
-        friction: 12,
-      }),
-    ]).start();
-  }, [fabMenuVisible, fabAnim, fabRotate]);
+    fabProgress.value = withSpring(fabMenuVisible ? 1 : 0, motion.spring.gentle);
+  }, [fabMenuVisible, fabProgress]);
 
-  const fabRotation = fabRotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '45deg'],
-  });
+  const fabIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(fabProgress.value, [0, 1], [0, 45])}deg` }],
+  }));
 
   const confirmDeleteLinked = (tx: Transaction) => {
     Alert.alert(
@@ -460,7 +453,13 @@ export default function TransactionsScreen() {
                   ]}
                 >
                   Fecha{' '}
-                  {sortBy === 'date' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                  {sortBy === 'date' && (
+                    <Icon
+                      name={sortOrder === 'desc' ? 'arrow-down' : 'arrow-up'}
+                      size={iconSize.sm}
+                      color={colors.green}
+                    />
+                  )}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -482,11 +481,13 @@ export default function TransactionsScreen() {
                   ]}
                 >
                   Monto{' '}
-                  {sortBy === 'amount'
-                    ? sortOrder === 'desc'
-                      ? '↓'
-                      : '↑'
-                    : ''}
+                  {sortBy === 'amount' && (
+                    <Icon
+                      name={sortOrder === 'desc' ? 'arrow-down' : 'arrow-up'}
+                      size={iconSize.sm}
+                      color={colors.green}
+                    />
+                  )}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -587,7 +588,7 @@ export default function TransactionsScreen() {
               }}
             >
               <Text style={[styles.exportBtnText, { color: colors.green }]}>
-                📤 Exportar CSV
+                <Icon name="tray-arrow-up" size={iconSize.sm} color={colors.green} /> Exportar CSV
               </Text>
             </TouchableOpacity>
           </View>
@@ -599,7 +600,7 @@ export default function TransactionsScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>📋</Text>
+            <Icon name="clipboard-text-outline" size={iconSize.lg} color={colors.textSecondary} style={styles.emptyEmoji} />
             <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
               Sin movimientos
             </Text>
@@ -616,58 +617,36 @@ export default function TransactionsScreen() {
         onPress={() => setFabMenuVisible(!fabMenuVisible)}
         activeOpacity={0.8}
       >
-        <Animated.Text
-          style={[
-            styles.fabText,
-            { color: colors.bg, transform: [{ rotate: fabRotation }] },
-          ]}
-        >
+        <Animated.Text style={[styles.fabText, { color: colors.bg }, fabIconStyle]}>
           +
         </Animated.Text>
       </TouchableOpacity>
 
       {/* FAB Menu */}
-      {[1, 2, 3].map((_, i) => {
-        const items = [
-          {
-            label: '✍️ Nuevo manual',
-            onPress: () => {
-              setFabMenuVisible(false);
-              setModalVisible(true);
-            },
+      {[
+        {
+          icon: 'pencil-plus-outline',
+          label: 'Nuevo manual',
+          onPress: () => {
+            setFabMenuVisible(false);
+            setModalVisible(true);
           },
-          { label: '🖼️ Escanear de galería', onPress: () => pickImage(false) },
-          { label: '📸 Escanear con cámara', onPress: () => pickImage(true) },
-        ];
-        const item = items[i];
-        const translateY = fabAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [20 * (i + 1), 0],
-        });
-        return (
-          <Animated.View
-            key={i}
-            style={[
-              styles.fabMenuItemWrapper,
-              {
-                opacity: fabAnim,
-                transform: [{ translateY }],
-                bottom: 84 + i * 52,
-              },
-            ]}
-            pointerEvents={fabMenuVisible ? 'auto' : 'none'}
-          >
-            <TouchableOpacity
-              style={[styles.fabMenuItem, { backgroundColor: colors.bgCard }]}
-              onPress={item.onPress}
-            >
-              <Text style={[styles.fabMenuText, { color: colors.text }]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        );
-      })}
+        },
+        { icon: 'image-multiple-outline', label: 'Escanear de galería', onPress: () => pickImage(false) },
+        { icon: 'camera', label: 'Escanear con cámara', onPress: () => pickImage(true) },
+      ].map((item, i) => (
+        <FabMenuItem
+          key={i}
+          index={i}
+          progress={fabProgress}
+          visible={fabMenuVisible}
+          icon={item.icon}
+          label={item.label}
+          onPress={item.onPress}
+          bgCard={colors.bgCard}
+          textColor={colors.text}
+        />
+      ))}
 
       {/* Scan loading overlay */}
       {scanLoading && (
@@ -743,8 +722,9 @@ export default function TransactionsScreen() {
               </Text>
               {editingTransaction && isLinkedCategory(editingTransaction.category) && (
                 <Text style={[styles.linkedWarning, { color: colors.textSecondary }]}>
-                  🔗 Este movimiento se generó automáticamente desde una deuda
-                  o meta. Cambiar el monto también ajustará ese saldo.
+                  <Icon name="link-variant" size={iconSize.sm} color={colors.textSecondary} /> Este
+                  movimiento se generó automáticamente desde una deuda o meta. Cambiar el monto
+                  también ajustará ese saldo.
                 </Text>
               )}
               <TransactionForm
@@ -847,7 +827,7 @@ export default function TransactionsScreen() {
                   ]}
                   onPress={() => setScanType('INCOME')}
                 >
-                  <Text>💰 Ingreso</Text>
+                  <Text><Icon name="cash-plus" size={iconSize.sm} color={colors.text} /> Ingreso</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
@@ -860,7 +840,7 @@ export default function TransactionsScreen() {
                   ]}
                   onPress={() => setScanType('EXPENSE')}
                 >
-                  <Text>💸 Gasto</Text>
+                  <Text><Icon name="cash-minus" size={iconSize.sm} color={colors.text} /> Gasto</Text>
                 </TouchableOpacity>
               </View>
 
@@ -891,6 +871,43 @@ export default function TransactionsScreen() {
   );
 }
 
+function FabMenuItem({
+  index,
+  progress,
+  visible,
+  icon,
+  label,
+  onPress,
+  bgCard,
+  textColor,
+}: {
+  index: number;
+  progress: SharedValue<number>;
+  visible: boolean;
+  icon: string;
+  label: string;
+  onPress: () => void;
+  bgCard: string;
+  textColor: string;
+}) {
+  const itemStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: interpolate(progress.value, [0, 1], [20 * (index + 1), 0]) }],
+  }));
+
+  return (
+    <Animated.View
+      style={[styles.fabMenuItemWrapper, itemStyle, { bottom: 84 + index * 52 }]}
+      pointerEvents={visible ? 'auto' : 'none'}
+    >
+      <TouchableOpacity style={[styles.fabMenuItem, { backgroundColor: bgCard }]} onPress={onPress}>
+        <Icon name={icon} size={iconSize.sm} color={textColor} />
+        <Text style={[styles.fabMenuText, { color: textColor }]}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -902,7 +919,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   emptyEmoji: {
-    fontSize: 28,
     marginBottom: 4,
   },
   emptyTitle: {
@@ -940,6 +956,9 @@ const styles = StyleSheet.create({
     zIndex: 9,
   },
   fabMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,

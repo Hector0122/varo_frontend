@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, FlatList, TouchableOpacity } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import { objectivesApi } from '../services/objectives';
 import LoadingScreen from './LoadingScreen';
 import type { ObjectiveEntry } from '../types';
@@ -39,7 +41,11 @@ export default function DebtPaymentHistoryModal({ visible, debtId, debtName, onC
                   <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
                     <View style={styles.rowLeft}>
                       <Text style={[styles.rowType, { color: colors.text }]}>
-                        {item.type === 'PAYMENT' ? '💰 Pago' : '📈 Aumento'}
+                        {item.type === 'PAYMENT' ? (
+                          <><Icon name="cash" size={iconSize.sm} color={colors.text} /> Pago</>
+                        ) : (
+                          <><Icon name="trending-up" size={iconSize.sm} color={colors.text} /> Aumento</>
+                        )}
                       </Text>
                       <Text style={[styles.rowDate, { color: colors.textMuted }]}>
                         {new Date(item.purchaseDate ?? item.createdAt).toLocaleDateString()}

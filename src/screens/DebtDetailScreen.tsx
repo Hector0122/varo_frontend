@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import { useToast } from '../hooks/useToast';
 import { objectivesApi } from '../services/objectives';
 import LoadingScreen from '../components/LoadingScreen';
@@ -196,9 +198,14 @@ export default function DebtDetailScreen() {
       <View style={[styles.actionCard, { backgroundColor: colors.bgCard }]}>
         <Text style={[styles.actionTitle, { color: colors.text }]}>Movimiento</Text>
         <Text style={[styles.autoLogHint, { color: colors.textTertiary }]}>
-          {actionMode === 'pay'
-            ? '🔗 Un pago se registra automáticamente como gasto — no necesitas agregarlo también en Movimientos.'
-            : 'Aumentar la deuda no genera un movimiento; si ya gastaste ese dinero, regístralo por separado en Movimientos.'}
+          {actionMode === 'pay' ? (
+            <>
+              <Icon name="link-variant" size={iconSize.sm} color={colors.textTertiary} /> Un pago se
+              registra automáticamente como gasto — no necesitas agregarlo también en Movimientos.
+            </>
+          ) : (
+            'Aumentar la deuda no genera un movimiento; si ya gastaste ese dinero, regístralo por separado en Movimientos.'
+          )}
         </Text>
         <View style={styles.modeRow}>
           <TouchableOpacity
@@ -289,7 +296,7 @@ export default function DebtDetailScreen() {
         onPress={() => setHistoryVisible(true)}
       >
         <Text style={[styles.historyBtnText, { color: colors.green }]}>
-          📋 Ver historial de pagos
+          <Icon name="clipboard-text-outline" size={iconSize.sm} color={colors.green} /> Ver historial de pagos
         </Text>
       </TouchableOpacity>
 
