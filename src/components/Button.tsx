@@ -24,13 +24,13 @@ interface Props {
 /**
  * Botón estándar de la app. El `Button` nativo de react-native no acepta
  * borderRadius (ni se ve igual entre iOS/Android), así que este es el único
- * botón que debería usarse — ver brand-kit/README.md#botones.
+ * botón que debería usarse — ver arcd_kit/README.md#botones.
  *
  * Radio y curva tomados de referencia del estilo de controles de Apple:
  * esquina "continua" (superelipse, no arco circular) + radio ligero.
  *
  * Feedback de tap: scale con `motion.spring.press` (Reanimated) — mismo
- * spring en las 6 apps, ver brand-kit/README.md#motion.
+ * spring en las 6 apps, ver arcd_kit/README.md#motion.
  */
 export default function Button({ title, onPress, disabled, loading, variant = 'primary', style }: Props) {
   const { colors } = useTheme();

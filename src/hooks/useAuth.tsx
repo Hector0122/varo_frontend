@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getTokens, setTokens, clearTokens } from '../services/tokenStorage';
 
 interface AuthContextType {
   isAuthenticated: boolean | null;
@@ -21,9 +22,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = await AsyncStorage.getItem('accessToken');
+        const { access } = await getTokens();
         const locked = await AsyncStorage.getItem(LOCKED_KEY);
-        setIsAuthenticated(!!token);
+        setIsAuthenticated(!!access);
         setIsLocked(locked === 'true');
       } catch {
         setIsAuthenticated(false);
@@ -41,16 +42,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setAuth = useCallback(async (access_token: string, refresh_token: string) => {
-    await AsyncStorage.setItem('accessToken', access_token);
-    await AsyncStorage.setItem('refreshToken', refresh_token);
+    await setTokens(access_token, refresh_token);
     await AsyncStorage.removeItem(LOCKED_KEY);
     setIsAuthenticated(true);
     setIsLocked(false);
   }, []);
 
   const clearAuth = useCallback(async () => {
-    await AsyncStorage.removeItem('accessToken');
-    await AsyncStorage.removeItem('refreshToken');
+    await clearTokens();
     await AsyncStorage.removeItem(LOCKED_KEY);
     setIsAuthenticated(false);
     setIsLocked(false);

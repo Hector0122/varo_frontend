@@ -1,11 +1,11 @@
-// Colores de Varo — ahora derivados de brand-kit/tokens.ts en vez de
+// Colores de Varo — ahora derivados de arcd_kit/tokens.ts en vez de
 // hex sueltos. Se conservan los mismos nombres de propiedad (bg, green,
 // red, yellow...) para no tener que tocar los ~24 archivos que ya
 // consumen `useTheme().colors`; lo único que cambió son los valores.
 //
 // green/red/yellow ya no son "colores planos" arbitrarios: green ES
 // primary (= semantic.success), red ES danger, yellow ES warning.
-// Ver ../../../../brand-kit/README.md para el porqué.
+// Ver ../../../../arcd_kit/README.md para el porqué.
 import { createAppTheme, brands } from './tokens';
 
 const { light: base, dark: baseDark } = createAppTheme(brands.varo);
