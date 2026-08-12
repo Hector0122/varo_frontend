@@ -8,7 +8,7 @@ interface Props {
   title: string;
   amount: number;
   color?: string;
-  /** Nombre de icono MDI (react-native-vector-icons/MaterialCommunityIcons), no emoji — ver brand-kit/README.md#iconos */
+  /** Nombre de icono MDI (react-native-vector-icons/MaterialCommunityIcons), no emoji — ver arcd_kit/README.md#iconos */
   icon?: string;
   compact?: boolean;
 }

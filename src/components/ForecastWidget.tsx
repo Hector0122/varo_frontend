@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import type { Forecast, FinancialObjective } from '../types';
 
 interface Props {
@@ -51,8 +53,12 @@ export default function ForecastWidget({ forecast, goal, compact }: Props) {
           </View>
         </View>
         <View style={styles.compactBottom}>
-          <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>📅 {formattedDate}</Text>
-          <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>💰 ${Math.round(forecast.monthlyNeeded).toLocaleString()}/mes</Text>
+          <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>
+            <Icon name="calendar" size={iconSize.sm} color={colors.textSecondary} /> {formattedDate}
+          </Text>
+          <Text style={[styles.compactInfoText, { color: colors.textSecondary }]}>
+            <Icon name="cash" size={iconSize.sm} color={colors.textSecondary} /> ${Math.round(forecast.monthlyNeeded).toLocaleString()}/mes
+          </Text>
           <View style={[styles.compactBadge, { backgroundColor: stateColor }]}>
             <Text style={styles.compactBadgeText}>{stateLabel}</Text>
           </View>
@@ -82,12 +88,12 @@ export default function ForecastWidget({ forecast, goal, compact }: Props) {
       </Text>
 
       <View style={styles.infoRow}>
-        <Text style={styles.infoIcon}>📅</Text>
+        <Icon name="calendar" size={iconSize.sm} color={colors.textSecondary} style={styles.infoIcon} />
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>{formattedDate}</Text>
       </View>
 
       <View style={styles.infoRow}>
-        <Text style={styles.infoIcon}>💰</Text>
+        <Icon name="cash" size={iconSize.sm} color={colors.textSecondary} style={styles.infoIcon} />
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
           ${Math.round(forecast.monthlyNeeded).toLocaleString()} / mes
         </Text>
@@ -95,7 +101,7 @@ export default function ForecastWidget({ forecast, goal, compact }: Props) {
 
       {forecast.savingAllocation > 0 && forecast.savingAllocation < 100 && (
         <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>📊</Text>
+          <Icon name="chart-bar" size={iconSize.sm} color={colors.textSecondary} style={styles.infoIcon} />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             {forecast.savingAllocation}% de tu ahorro (${Math.round(forecast.totalMonthlySaving).toLocaleString()}/mes)
           </Text>
@@ -179,7 +185,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoIcon: {
-    fontSize: 16,
     marginRight: 8,
   },
   infoText: {

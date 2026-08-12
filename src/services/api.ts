@@ -1,6 +1,6 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config';
+import { getTokens, setTokens, clearTokens } from './tokenStorage';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,9 +10,9 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const { access } = await getTokens();
+  if (access) {
+    config.headers.Authorization = `Bearer ${access}`;
   }
   return config;
 });
@@ -24,19 +24,17 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const refreshToken = await AsyncStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error('No refresh token');
+        const { refresh } = await getTokens();
+        if (!refresh) throw new Error('No refresh token');
         const res = await axios.post(`${API_BASE_URL}/auth/refresh`, null, {
-          headers: { Authorization: `Bearer ${refreshToken}` },
+          headers: { Authorization: `Bearer ${refresh}` },
         });
         const { access_token, refresh_token } = res.data;
-        await AsyncStorage.setItem('accessToken', access_token);
-        await AsyncStorage.setItem('refreshToken', refresh_token);
+        await setTokens(access_token, refresh_token);
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
         return api(originalRequest);
       } catch (refreshError) {
-        await AsyncStorage.removeItem('accessToken');
-        await AsyncStorage.removeItem('refreshToken');
+        await clearTokens();
         return Promise.reject(refreshError);
       }
     }

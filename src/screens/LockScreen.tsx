@@ -7,7 +7,9 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import { useBiometrics } from '../hooks/useBiometrics';
 
 interface LockScreenProps {
@@ -49,7 +51,9 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Text style={[styles.title, { color: colors.text }]}>🔒 Varo</Text>
+      <Text style={[styles.title, { color: colors.text }]}>
+        <Icon name="lock" size={iconSize.lg} color={colors.text} /> Varo
+      </Text>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         {available && enabled
           ? 'Usa tu huella o ingresa tu PIN'
@@ -101,7 +105,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
           }
         >
           <Text style={[styles.bioButtonText, { color: colors.green }]}>
-            🔓 Usar huella / Face ID
+            <Icon name="fingerprint" size={iconSize.sm} color={colors.green} /> Usar huella / Face ID
           </Text>
         </TouchableOpacity>
       )}

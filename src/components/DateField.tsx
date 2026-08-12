@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 
 interface Props {
   value: string; // 'YYYY-MM-DD'
@@ -57,7 +59,7 @@ export default function DateField({ value, onChange, label = 'Fecha' }: Props) {
         onPress={openPicker}
       >
         <Text style={{ color: colors.text }}>{formatted}</Text>
-        <Text style={styles.icon}>📅</Text>
+        <Icon name="calendar" size={iconSize.sm} color={colors.textSecondary} />
       </TouchableOpacity>
 
       {Platform.OS === 'android' && pickerVisible && (
@@ -119,9 +121,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  icon: {
-    fontSize: 14,
   },
   overlay: {
     flex: 1,

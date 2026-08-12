@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { Animated, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { Text, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
+import { motion, iconSize } from '../theme/tokens';
 
 interface ToastItem {
   id: number;
@@ -48,14 +51,20 @@ function ToastStack({ toasts }: { toasts: ToastItem[] }) {
   const stackStyle = { top: insets.top + 8, width: width - 32 };
 
   return (
-    <Animated.View style={[styles.stack, styles.stackLeft, stackStyle]}>
+    <View style={[styles.stack, styles.stackLeft, stackStyle]}>
       {toasts.map((toast) => (
-        <Animated.View key={toast.id} style={[styles.toast, { backgroundColor: colors.green }]}>
-          <Text style={styles.icon}>✓</Text>
+        <Animated.View
+          key={toast.id}
+          entering={FadeInDown.duration(motion.duration.base)}
+          exiting={FadeOutUp.duration(motion.duration.fast)}
+          layout={LinearTransition.duration(motion.duration.fast)}
+          style={[styles.toast, { backgroundColor: colors.green }]}
+        >
+          <Icon name="check-circle" size={iconSize.sm} color="#fff" style={styles.icon} />
           <Text style={styles.text}>{toast.message}</Text>
         </Animated.View>
       ))}
-    </Animated.View>
+    </View>
   );
 }
 
@@ -85,9 +94,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   icon: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
     marginRight: 8,
   },
   text: {

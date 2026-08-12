@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import type { FinancialObjective } from '../types';
 
 interface Props {
@@ -49,7 +51,7 @@ export default function DebtCard({ debt, compact, onPress, onHistory, monthlySpe
       )}
       {monthlySpending !== undefined && monthlySpending > 0 && (
         <Text style={[styles.monthlySpending, { color: colors.textMuted }]}>
-          💳 Gasto del corte
+          <Icon name="credit-card-outline" size={iconSize.sm} color={colors.textMuted} /> Gasto del corte
           {periodStart && periodEnd ? ` (${shortDate(periodStart)} - ${shortDate(periodEnd)})` : ''}: $
           {monthlySpending.toLocaleString()}
         </Text>
@@ -64,7 +66,7 @@ export default function DebtCard({ debt, compact, onPress, onHistory, monthlySpe
       {content}
       {onHistory && (
         <Text style={[styles.historyLink, { color: colors.green }]} onPress={onHistory}>
-          📋 Ver historial
+          <Icon name="clipboard-text-outline" size={iconSize.sm} color={colors.green} /> Ver historial
         </Text>
       )}
     </View>

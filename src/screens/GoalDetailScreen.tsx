@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute, RouteProp } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { objectivesApi } from '../services/objectives';
 import ForecastWidget from '../components/ForecastWidget';
 import TrendBadge from '../components/TrendBadge';
 import LoadingScreen from '../components/LoadingScreen';
 import GoalContributionHistoryModal from '../components/GoalContributionHistoryModal';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import { useToast } from '../hooks/useToast';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { FinancialObjective, Forecast } from '../types';
@@ -171,9 +173,10 @@ export default function GoalDetailScreen() {
       <View style={[styles.addSection, { borderTopColor: colors.border }]}>
         <Text style={[styles.addTitle, { color: colors.text }]}>Ahorro</Text>
         <Text style={[styles.autoLogHint, { color: colors.textTertiary }]}>
+          <Icon name="link-variant" size={iconSize.sm} color={colors.textTertiary} />{' '}
           {savingMode === 'add'
-            ? '🔗 Agregar ahorro se registra automáticamente como gasto — no necesitas agregarlo también en Movimientos.'
-            : '🔗 Retirar ahorro se registra automáticamente como ingreso.'}
+            ? 'Agregar ahorro se registra automáticamente como gasto — no necesitas agregarlo también en Movimientos.'
+            : 'Retirar ahorro se registra automáticamente como ingreso.'}
         </Text>
         <View style={styles.modeRow}>
           <TouchableOpacity
@@ -235,7 +238,7 @@ export default function GoalDetailScreen() {
           onPress={() => setHistoryVisible(true)}
         >
           <Text style={[styles.historyBtnText, { color: colors.green }]}>
-            📋 Ver historial de ahorro
+            <Icon name="clipboard-text-outline" size={iconSize.sm} color={colors.green} /> Ver historial de ahorro
           </Text>
         </TouchableOpacity>
       </View>

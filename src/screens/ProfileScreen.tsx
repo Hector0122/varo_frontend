@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { logout } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import { useBiometrics } from '../hooks/useBiometrics';
 import Button from '../components/Button';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -71,7 +73,11 @@ export default function ProfileScreen() {
         onPress={toggle}
       >
         <Text style={[styles.optionText, { color: colors.text }]}>
-          {mode === 'dark' ? '☀️ Modo claro' : '🌙 Modo oscuro'}
+          {mode === 'dark' ? (
+            <><Icon name="weather-sunny" size={iconSize.sm} color={colors.text} /> Modo claro</>
+          ) : (
+            <><Icon name="weather-night" size={iconSize.sm} color={colors.text} /> Modo oscuro</>
+          )}
         </Text>
       </TouchableOpacity>
 
@@ -83,7 +89,7 @@ export default function ProfileScreen() {
         onPress={() => navigation.navigate('Categories')}
       >
         <Text style={[styles.optionText, { color: colors.text }]}>
-          🏷️ Administrar categorías
+          <Icon name="tag-outline" size={iconSize.sm} color={colors.text} /> Administrar categorías
         </Text>
       </TouchableOpacity>
 
@@ -97,9 +103,8 @@ export default function ProfileScreen() {
           onPress={() => setShowPinSetup(true)}
         >
           <Text style={[styles.optionText, { color: colors.text }]}>
-            {available
-              ? '🔒 Activar bloqueo (PIN / Huella)'
-              : '🔒 Activar bloqueo (PIN)'}
+            <Icon name="lock-outline" size={iconSize.sm} color={colors.text} />{' '}
+            {available ? 'Activar bloqueo (PIN / Huella)' : 'Activar bloqueo (PIN)'}
           </Text>
         </TouchableOpacity>
       ) : (
@@ -112,7 +117,7 @@ export default function ProfileScreen() {
             onPress={handleDisableLock}
           >
             <Text style={[styles.optionText, { color: colors.red }]}>
-              🔓 Desactivar bloqueo
+              <Icon name="lock-open-outline" size={iconSize.sm} color={colors.red} /> Desactivar bloqueo
             </Text>
           </TouchableOpacity>
 
@@ -124,7 +129,7 @@ export default function ProfileScreen() {
             onPress={lockApp}
           >
             <Text style={[styles.optionText, { color: colors.text }]}>
-              🔒 Bloquear app ahora
+              <Icon name="lock-outline" size={iconSize.sm} color={colors.text} /> Bloquear app ahora
             </Text>
           </TouchableOpacity>
         </>

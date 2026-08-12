@@ -7,7 +7,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Controller, Control } from 'react-hook-form';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 import DateField from './DateField';
 import Button from './Button';
 import type { Category } from '../types';
@@ -67,7 +69,7 @@ export default function TransactionForm({
           ]}
           onPress={() => onChange('INCOME')}
         >
-          <Text>💰 Ingreso</Text>
+          <Text><Icon name="cash-plus" size={iconSize.sm} color={colors.text} /> Ingreso</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -80,7 +82,7 @@ export default function TransactionForm({
           ]}
           onPress={() => onChange('EXPENSE')}
         >
-          <Text>💸 Gasto</Text>
+          <Text><Icon name="cash-minus" size={iconSize.sm} color={colors.text} /> Gasto</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -149,7 +151,7 @@ export default function TransactionForm({
       {showCategoryInput && (
         <TouchableOpacity onPress={() => setShowCategoryInput(false)}>
           <Text style={[styles.backToTags, { color: colors.green }]}>
-            ← Ver categorías guardadas
+            <Icon name="chevron-left" size={iconSize.sm} color={colors.green} /> Ver categorías guardadas
           </Text>
         </TouchableOpacity>
       )}

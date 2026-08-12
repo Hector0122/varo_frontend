@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
+import { iconSize } from '../theme/tokens';
 
 interface Props {
   message?: string;
@@ -11,7 +13,7 @@ export default function ErrorMessage({ message = 'Ocurrió un error al cargar lo
   const { colors } = useTheme();
   return (
     <View style={[styles.container, { backgroundColor: colors.bgCard }]}>
-      <Text style={styles.emoji}>⚠️</Text>
+      <Icon name="alert-circle-outline" size={iconSize.xl} color={colors.red} style={styles.emoji} />
       <Text style={[styles.message, { color: colors.text }]}>{message}</Text>
       {onRetry && (
         <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.green }]} onPress={onRetry}>
@@ -30,7 +32,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emoji: {
-    fontSize: 48,
     marginBottom: 12,
   },
   message: {

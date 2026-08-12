@@ -5,8 +5,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { objectivesApi } from '../services/objectives';
+import { iconSize } from '../theme/tokens';
 import SummaryCard from '../components/SummaryCard';
 import ForecastWidget from '../components/ForecastWidget';
 import DebtCard from '../components/DebtCard';
@@ -167,7 +169,7 @@ export default function DashboardScreen() {
 
       {!mainGoal && (
         <View style={[styles.emptyCard, { backgroundColor: colors.bgCard }]}>
-          <Text style={styles.emptyEmoji}>🎯</Text>
+          <Icon name="target" size={iconSize.lg} color={colors.textSecondary} style={styles.emptyEmoji} />
           <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Sin metas activas</Text>
           <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Crea tu primera meta para ver el forecast.</Text>
         </View>
@@ -199,7 +201,7 @@ export default function DashboardScreen() {
         })
       ) : (
         <View style={[styles.emptyCard, { backgroundColor: colors.bgCard }]}>
-          <Text style={styles.emptyEmoji}>💳</Text>
+          <Icon name="credit-card-outline" size={iconSize.lg} color={colors.textSecondary} style={styles.emptyEmoji} />
           <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Sin deudas</Text>
           <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Agrega una deuda para darle seguimiento.</Text>
         </View>
@@ -320,7 +322,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   emptyEmoji: {
-    fontSize: 24,
     marginBottom: 4,
   },
   emptyTitle: {
