@@ -40,4 +40,4 @@ React Native · TypeScript · React Navigation · TanStack Query
 
 ## Licencia
 
-MIT
+MIT — ver [LICENSE](LICENSE)
