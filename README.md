@@ -1,4 +1,4 @@
-# Varo
+# Varo 💰
 
 App móvil de finanzas personales para Android. Registra tus movimientos, escanea tickets con IA, y sigue tus metas de ahorro con una predicción automática de cuándo las vas a cumplir.
 
