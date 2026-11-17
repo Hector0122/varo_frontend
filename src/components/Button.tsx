@@ -1,10 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../theme/ThemeContext';
-import { radius, motion } from '../theme/tokens';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+import { radius } from '../theme/tokens';
 
 type ButtonVariant = 'primary' | 'danger' | 'ghost';
 
@@ -29,37 +26,25 @@ interface Props {
  * Radio y curva tomados de referencia del estilo de controles de Apple:
  * esquina "continua" (superelipse, no arco circular) + radio ligero.
  *
- * Feedback de tap: scale con `motion.spring.press` (Reanimated) — mismo
- * spring en las 6 apps, ver arcd_kit/README.md#motion.
+ * Feedback de tap: se encoge a 0.96 mientras está presionado.
  */
 export default function Button({ title, onPress, disabled, loading, variant = 'primary', style }: Props) {
   const { colors } = useTheme();
-  const scale = useSharedValue(1);
 
   const background =
     variant === 'primary' ? colors.green : variant === 'danger' ? colors.red : 'transparent';
   const textColor = variant === 'ghost' ? colors.textSecondary : '#FFFFFF';
   const isDisabled = disabled || loading;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
   return (
-    <AnimatedPressable
+    <Pressable
       onPress={onPress}
       disabled={isDisabled}
-      onPressIn={() => {
-        scale.value = withSpring(0.96, motion.spring.press);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, motion.spring.press);
-      }}
-      style={[
+      style={({ pressed }) => [
         styles.base,
         { backgroundColor: background },
         isDisabled && styles.disabled,
-        animatedStyle,
+        pressed && styles.pressed,
         style,
       ]}
     >
@@ -68,11 +53,14 @@ export default function Button({ title, onPress, disabled, loading, variant = 'p
       ) : (
         <Text style={[styles.text, { color: textColor }]}>{title}</Text>
       )}
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  pressed: {
+    transform: [{ scale: 0.96 }],
+  },
   base: {
     borderRadius: radius.sm,
     borderCurve: 'continuous', // esquina "continua" tipo iOS (RN 0.71+), no-op en Android

@@ -13,14 +13,9 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Share,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  interpolate,
-  type SharedValue,
-} from 'react-native-reanimated';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
@@ -38,8 +33,6 @@ import Button from '../components/Button';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { motion, iconSize } from '../theme/tokens';
-import RNFS from 'react-native-fs';
-import Share from 'react-native-share';
 import type { Transaction, Category } from '../types';
 
 interface TransactionForm {
@@ -66,7 +59,7 @@ export default function TransactionsScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [fabMenuVisible, setFabMenuVisible] = useState(false);
-  const fabProgress = useSharedValue(0);
+  const [fabProgress] = useState(() => new Animated.Value(0));
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<Transaction | null>(null);
@@ -288,12 +281,8 @@ export default function TransactionsScreen() {
   };
 
   useEffect(() => {
-    fabProgress.value = withSpring(fabMenuVisible ? 1 : 0, motion.spring.gentle);
+    Animated.spring(fabProgress, { toValue: fabMenuVisible ? 1 : 0, ...motion.spring.gentle, useNativeDriver: true }).start();
   }, [fabMenuVisible, fabProgress]);
-
-  const fabIconStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${interpolate(fabProgress.value, [0, 1], [0, 45])}deg` }],
-  }));
 
   const confirmDeleteLinked = (tx: Transaction) => {
     Alert.alert(
@@ -528,22 +517,14 @@ export default function TransactionsScreen() {
                   const res = await api.get('/transactions/export/csv', {
                     responseType: 'text',
                   });
-                  const csv = res.data;
-                  const date = new Date().toISOString().split('T')[0];
-                  const fileName = `varo-transacciones-${date}.csv`;
-                  const filePath = `${RNFS.CachesDirectoryPath}/${fileName}`;
-                  await RNFS.writeFile(filePath, csv, 'utf8');
-                  await Share.open({
-                    url: `file://${filePath}`,
-                    type: 'text/csv',
-                    title: fileName,
-                    subject: `Exportación Varo - ${fileName}`,
-                    message: 'Tus movimientos financieros exportados desde Varo',
+                  // ponytail: se comparte como texto (Share de RN), no como archivo .csv;
+                  // Android limita el tamaño del intent (~500 KB), suficiente para años de gastos.
+                  await Share.share({
+                    title: `varo-transacciones-${todayIso()}.csv`,
+                    message: res.data,
                   });
                 } catch (err: any) {
-                  if (err?.message !== 'User did not share') {
-                    Alert.alert('Error', 'No se pudo exportar: ' + (err.message || 'Error desconocido'));
-                  }
+                  Alert.alert('Error', 'No se pudo exportar: ' + (err.message || 'Error desconocido'));
                 }
               }}
             >
@@ -580,9 +561,7 @@ export default function TransactionsScreen() {
         }}
         activeOpacity={0.8}
       >
-        <Animated.Text style={[styles.fabText, { color: colors.bg }, fabIconStyle]}>
-          +
-        </Animated.Text>
+        <Text style={[styles.fabText, { color: colors.bg }]}>+</Text>
       </TouchableOpacity>
 
       {/* Escanear ticket */}
@@ -805,7 +784,7 @@ function FabMenuItem({
   textColor,
 }: {
   index: number;
-  progress: SharedValue<number>;
+  progress: Animated.Value;
   visible: boolean;
   icon: string;
   label: string;
@@ -813,10 +792,10 @@ function FabMenuItem({
   bgCard: string;
   textColor: string;
 }) {
-  const itemStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateY: interpolate(progress.value, [0, 1], [20 * (index + 1), 0]) }],
-  }));
+  const itemStyle = {
+    opacity: progress,
+    transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [20 * (index + 1), 0] }) }],
+  };
 
   return (
     <Animated.View
