@@ -20,7 +20,6 @@ import { flushQueue, saveTransaction } from '../services/transactionQueue';
 import { sortByFrequency } from '../utils/frequency';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
-import { updateGastoWidget } from '../widget/GastoWidget';
 import DateField, { todayIso } from './DateField';
 import Button from './Button';
 import type { Category, Transaction } from '../types';
@@ -81,10 +80,6 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
   );
   const chips = useMemo(() => sorted(type), [sorted, type]);
 
-  const widgetCats = useMemo(() => sorted('EXPENSE').slice(0, 6).join('\n'), [sorted]);
-  useEffect(() => {
-    if (categories && transactions) updateGastoWidget(widgetCats ? widgetCats.split('\n') : []);
-  }, [widgetCats, categories, transactions]);
 
   const open = useCallback((o: OpenOptions = {}) => {
     setType(o.type ?? 'EXPENSE');
