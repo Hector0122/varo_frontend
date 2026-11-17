@@ -14,6 +14,7 @@ import DebtDetailScreen from '../screens/DebtDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 import RecurringScreen from '../screens/RecurringScreen';
+import ImportStatementScreen from '../screens/ImportStatementScreen';
 import { QuickAddProvider } from '../components/QuickAdd';
 
 export type MainTabParamList = {
@@ -29,6 +30,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Categories: undefined;
   Recurring: undefined;
+  ImportStatement: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -116,6 +118,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
       <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: 'Categorías' }} />
       <Stack.Screen name="Recurring" component={RecurringScreen} options={{ title: 'Gastos fijos' }} />
+      <Stack.Screen name="ImportStatement" component={ImportStatementScreen} options={{ title: 'Importar estado de cuenta' }} />
     </Stack.Navigator>
     </QuickAddProvider>
   );
