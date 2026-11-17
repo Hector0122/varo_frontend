@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { Text, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { Animated, Text, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
@@ -41,6 +40,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Entra deslizándose desde arriba (Animated de RN, sin librerías). */
+function Toast({ message, color }: { message: string; color: string }) {
+  const progress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(progress, { toValue: 1, duration: motion.duration.base, useNativeDriver: true }).start();
+  }, [progress]);
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] });
+  return (
+    <Animated.View style={[styles.toast, { backgroundColor: color, opacity: progress, transform: [{ translateY }] }]}>
+      <Icon name="check-circle" size={iconSize.sm} color="#fff" style={styles.icon} />
+      <Text style={styles.text}>{message}</Text>
+    </Animated.View>
+  );
+}
+
 function ToastStack({ toasts }: { toasts: ToastItem[] }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -53,16 +67,7 @@ function ToastStack({ toasts }: { toasts: ToastItem[] }) {
   return (
     <View style={[styles.stack, styles.stackLeft, stackStyle]}>
       {toasts.map((toast) => (
-        <Animated.View
-          key={toast.id}
-          entering={FadeInDown.duration(motion.duration.base)}
-          exiting={FadeOutUp.duration(motion.duration.fast)}
-          layout={LinearTransition.duration(motion.duration.fast)}
-          style={[styles.toast, { backgroundColor: colors.green }]}
-        >
-          <Icon name="check-circle" size={iconSize.sm} color="#fff" style={styles.icon} />
-          <Text style={styles.text}>{toast.message}</Text>
-        </Animated.View>
+        <Toast key={toast.id} message={toast.message} color={colors.green} />
       ))}
     </View>
   );
