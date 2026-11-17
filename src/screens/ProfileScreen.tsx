@@ -8,6 +8,10 @@ import {
   TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
+import { api } from '../services/api';
+import { clearQueue } from '../services/transactionQueue';
+import { useToast } from '../hooks/useToast';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { logout } from '../services/auth';
@@ -27,6 +31,32 @@ export default function ProfileScreen() {
     useBiometrics();
   const [pinInput, setPinInput] = useState('');
   const [showPinSetup, setShowPinSetup] = useState(false);
+  const qc = useQueryClient();
+  const { showToast } = useToast();
+
+  const handleDeleteData = () => {
+    Alert.alert(
+      'Borrar todos mis datos',
+      'Se borran movimientos, categorías, metas, deudas y gastos fijos. Tu cuenta se queda. No se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar todo',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete('/users/me/data');
+              await clearQueue();
+              qc.invalidateQueries();
+              showToast('Listo: Varo quedó en ceros');
+            } catch (err: any) {
+              Alert.alert('Error', err.response?.data?.message || 'No se pudo borrar');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -183,6 +213,7 @@ export default function ProfileScreen() {
 
       <View style={styles.spacer} />
 
+      <Button title="Borrar todos mis datos" onPress={handleDeleteData} variant="ghost" />
       <Button title="Cerrar sesión" onPress={handleLogout} variant="danger" />
     </View>
   );
