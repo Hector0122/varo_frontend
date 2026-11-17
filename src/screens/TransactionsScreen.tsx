@@ -1,47 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  Modal,
-  TextInput,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
-  RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
+  Alert,
   Animated,
-  Share,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm, useWatch } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
-import { isLinkedCategory } from '../constants/systemCategories';
 import TransactionItem from '../components/TransactionItem';
-import TransactionForm from '../components/TransactionForm';
-import DateField, { todayIso } from '../components/DateField';
 import { useQuickAdd } from '../components/QuickAdd';
-import { saveTransaction } from '../services/transactionQueue';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
-import Button from '../components/Button';
 import { useTheme } from '../theme/ThemeContext';
-import { useToast } from '../hooks/useToast';
 import { motion, iconSize } from '../theme/tokens';
-import type { Transaction, Category } from '../types';
-
-interface TransactionForm {
-  amount: string;
-  category: string;
-  note: string;
-  type: 'INCOME' | 'EXPENSE';
-  date: string;
-}
+import { parseIsoDate, todayIso, toIsoDate } from '../utils/dates';
+import { categoryStyle } from '../utils/categoryStyle';
+import { money } from '../utils/money';
+import type { Transaction } from '../types';
 
 interface ScannedReceipt {
   amount: number;
@@ -51,287 +36,153 @@ interface ScannedReceipt {
   type: 'EXPENSE';
 }
 
+type Filter = 'ALL' | 'EXPENSE' | 'INCOME';
+type Sort = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
+const SORT_LABEL: Record<Sort, string> = {
+  'date-desc': 'Recientes',
+  'date-asc': 'Antiguos',
+  'amount-desc': 'Mayor monto',
+  'amount-asc': 'Menor monto',
+};
+const SORTS = Object.keys(SORT_LABEL) as Sort[];
+
+function dayLabel(iso: string) {
+  const today = todayIso();
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  if (iso === today) return 'Hoy';
+  if (iso === toIsoDate(y)) return 'Ayer';
+  const label = parseIsoDate(iso).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 export default function TransactionsScreen() {
   const { colors } = useTheme();
-  const queryClient = useQueryClient();
-  const { showToast } = useToast();
   const quickAdd = useQuickAdd();
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [scanModalVisible, setScanModalVisible] = useState(false);
   const [fabMenuVisible, setFabMenuVisible] = useState(false);
   const [fabProgress] = useState(() => new Animated.Value(0));
-  const [showCategoryInput, setShowCategoryInput] = useState(false);
-  const [editingTransaction, setEditingTransaction] =
-    useState<Transaction | null>(null);
-  // scanned data uses individual state vars below
   const [scanLoading, setScanLoading] = useState(false);
-
-  // Estados editables del preview de ticket escaneado
-  const [scanAmount, setScanAmount] = useState('');
-  const [scanCategory, setScanCategory] = useState('');
-  const [scanNote, setScanNote] = useState('');
-  const [scanDate, setScanDate] = useState('');
-  const [scanType, setScanType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
-
-  // Filtros y ordenamiento
-  const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>(
-    'ALL',
-  );
-  const [filterCategory, setFilterCategory] = useState('');
-  const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
+  const [filter, setFilter] = useState<Filter>('ALL');
+  const [category, setCategory] = useState('');
+  const [categoryPicker, setCategoryPicker] = useState(false);
+  const [sort, setSort] = useState<Sort>('date-desc');
   const [refreshing, setRefreshing] = useState(false);
-  const {
-    data: transactions,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery<Transaction[]>({
-    queryKey: ['transactions', filterType, filterCategory, sortBy, sortOrder],
-    queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (filterType !== 'ALL') params.type = filterType;
-      if (filterCategory) params.category = filterCategory;
-      params.sortBy = sortBy;
-      params.sortOrder = sortOrder;
-      const res = await api.get('/transactions', { params });
-      return res.data;
-    },
+
+  // Misma llave que Inicio y el registro rápido: filtrar y ordenar aquí, sin otra petición.
+  const { data: transactions, isLoading, isError, refetch } = useQuery<Transaction[]>({
+    queryKey: ['transactions'],
+    queryFn: async () => (await api.get('/transactions')).data,
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({
-      id,
-      payload,
-    }: {
-      id: string;
-      payload: Partial<Transaction>;
-    }) => {
-      const res = await api.patch(`/transactions/${id}`, payload);
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['goals'] });
-      queryClient.invalidateQueries({ queryKey: ['forecast'] });
-      setEditModalVisible(false);
-      setEditingTransaction(null);
-      reset();
-      showToast('Movimiento actualizado');
-    },
-    onError: (err: any) => {
-      Alert.alert(
-        'Error',
-        err.response?.data?.message || 'No se pudo actualizar',
-      );
-    },
-  });
+  const usedCategories = useMemo(
+    () => [...new Set((transactions ?? []).map(t => t.category))].sort(),
+    [transactions],
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/transactions/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['goals'] });
-      queryClient.invalidateQueries({ queryKey: ['forecast'] });
-      showToast('Movimiento eliminado');
-    },
-  });
-
-  const { control, handleSubmit, reset, setValue } = useForm<TransactionForm>({
-    defaultValues: {
-      amount: '',
-      category: '',
-      note: '',
-      type: 'EXPENSE',
-      date: todayIso(),
-    },
-  });
-
-  const selectedType = useWatch({ control, name: 'type' });
-
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: ['categories', selectedType],
-    queryFn: async () => {
-      const res = await api.get(`/categories?type=${selectedType}`);
-      return res.data;
-    },
-  });
-
-  const { data: allCategories } = useQuery<Category[]>({
-    queryKey: ['categories', 'all'],
-    queryFn: async () => {
-      const res = await api.get('/categories');
-      return res.data;
-    },
-  });
-
-  const onEditSubmit = (data: TransactionForm) => {
-    if (!editingTransaction) return;
-    updateMutation.mutate({
-      id: editingTransaction.id,
-      payload: {
-        amount: Number(data.amount),
-        category: data.category,
-        note: data.note || undefined,
-        type: data.type,
-        date: data.date,
-      },
-    });
-  };
-
-  const openEdit = (tx: Transaction) => {
-    setEditingTransaction(tx);
-    setValue('amount', String(tx.amount));
-    setValue('category', tx.category);
-    setValue('note', tx.note || '');
-    setValue('type', tx.type);
-    setValue('date', new Date(tx.date).toISOString().split('T')[0]);
-    setEditModalVisible(true);
-  };
-
-  const pickImage = (fromCamera: boolean) => {
-    setFabMenuVisible(false);
-    const options = {
-      mediaType: 'photo' as const,
-      includeBase64: true,
-      maxWidth: 600,
-      maxHeight: 600,
-      quality: 0.5 as const,
-    };
-
-    const launcher = fromCamera ? launchCamera : launchImageLibrary;
-
-    launcher(options, async response => {
-      if (
-        response.didCancel ||
-        response.errorCode ||
-        !response.assets?.[0]?.base64
-      ) {
-        return;
-      }
-      const base64 = response.assets[0].base64;
-      const mimeType = response.assets[0].type || 'image/jpeg';
-      const imageUri = `data:${mimeType};base64,${base64}`;
-
-      // Validar tamaño antes de consumir el tier gratuito de Groq
-      const sizeMB = imageUri.length / (1024 * 1024);
-      if (sizeMB > 1.5) {
-        Alert.alert(
-          'Imagen muy grande',
-          `La imagen pesa ${sizeMB.toFixed(
-            1,
-          )}MB. Intenta sacarla más cercana al ticket o con menos resolución.`,
-        );
-        return;
-      }
-
-      setScanLoading(true);
-      try {
-        const res = await api.post('/transactions/scan-receipt', {
-          image: imageUri,
-        });
-        const data = res.data as ScannedReceipt;
-        setScanAmount(String(data.amount ?? ''));
-        setScanCategory(data.category ?? '');
-        setScanNote(data.note ?? '');
-        setScanDate(data.date ?? todayIso());
-        setScanType(data.type ?? 'EXPENSE');
-        setScanModalVisible(true);
-      } catch (err: any) {
-        Alert.alert(
-          'Error',
-          err.response?.data?.message || 'No se pudo procesar el ticket',
-        );
-      } finally {
-        setScanLoading(false);
-      }
-    });
-  };
-
-  const confirmScanned = () => {
-    if (!scanAmount || !scanCategory || !scanDate) {
-      Alert.alert(
-        'Faltan datos',
-        'Completa al menos el monto, categoría y fecha.',
-      );
-      return;
+  const sections = useMemo(() => {
+    const list = (transactions ?? [])
+      .filter(t => (filter === 'ALL' || t.type === filter) && (!category || t.category === category))
+      .sort((a, b) => {
+        const [key, dir] = sort.split('-');
+        const d = key === 'date' ? a.date.localeCompare(b.date) : Number(a.amount) - Number(b.amount);
+        return dir === 'asc' ? d : -d;
+      });
+    if (sort.startsWith('amount')) return list.length ? [{ title: SORT_LABEL[sort], total: 0, data: list }] : [];
+    const byDay = new Map<string, Transaction[]>();
+    for (const t of list) {
+      const day = t.date.slice(0, 10);
+      byDay.set(day, [...(byDay.get(day) ?? []), t]);
     }
-    saveTransaction(
-      {
-        amount: Number(scanAmount),
-        category: scanCategory,
-        note: scanNote || undefined,
-        type: scanType,
-        date: scanDate,
-      },
-      queryClient,
-    ).then(
-      r => showToast(r === 'queued' ? 'Sin conexión: se enviará al volver la red' : 'Movimiento guardado'),
-      (err: any) => Alert.alert('Error', err.response?.data?.message || 'No se pudo guardar'),
-    );
-    setScanModalVisible(false);
-    setScanAmount('');
-    setScanCategory('');
-    setScanNote('');
-    setScanDate('');
-    setScanType('EXPENSE');
-  };
+    return [...byDay.entries()].map(([day, data]) => ({
+      title: dayLabel(day),
+      total: data.reduce((s, t) => s + (t.type === 'EXPENSE' ? Number(t.amount) : 0), 0),
+      data,
+    }));
+  }, [transactions, filter, category, sort]);
 
   useEffect(() => {
     Animated.spring(fabProgress, { toValue: fabMenuVisible ? 1 : 0, ...motion.spring.gentle, useNativeDriver: true }).start();
   }, [fabMenuVisible, fabProgress]);
 
-  const confirmDeleteLinked = (tx: Transaction) => {
-    Alert.alert(
-      'Movimiento vinculado',
-      'Este movimiento se generó automáticamente desde una deuda o meta. Eliminarlo también revertirá ese saldo. ¿Eliminar de todas formas?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => deleteMutation.mutate(tx.id),
-        },
-      ],
-    );
-  };
-
-  const showActionMenu = (tx: Transaction) => {
-    const linked = isLinkedCategory(tx.category);
-    Alert.alert('Movimiento', `${tx.category} - $${tx.amount}`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Editar', onPress: () => openEdit(tx) },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: () =>
-          linked ? confirmDeleteLinked(tx) : deleteMutation.mutate(tx.id),
+  // El ticket escaneado se revisa en la misma hoja del registro rápido.
+  const pickImage = (fromCamera: boolean) => {
+    setFabMenuVisible(false);
+    const launcher = fromCamera ? launchCamera : launchImageLibrary;
+    launcher(
+      { mediaType: 'photo', includeBase64: true, maxWidth: 600, maxHeight: 600, quality: 0.5 },
+      async response => {
+        const asset = response.assets?.[0];
+        if (response.didCancel || response.errorCode || !asset?.base64) return;
+        const imageUri = `data:${asset.type || 'image/jpeg'};base64,${asset.base64}`;
+        const sizeMB = imageUri.length / (1024 * 1024);
+        if (sizeMB > 1.5) {
+          Alert.alert(
+            'Imagen muy grande',
+            `La imagen pesa ${sizeMB.toFixed(1)}MB. Intenta sacarla más cercana al ticket o con menos resolución.`,
+          );
+          return;
+        }
+        setScanLoading(true);
+        try {
+          const data = (await api.post('/transactions/scan-receipt', { image: imageUri })).data as ScannedReceipt;
+          quickAdd.open({
+            type: data.type ?? 'EXPENSE',
+            amount: Number(data.amount) || undefined,
+            category: data.category,
+            note: data.note,
+            date: data.date,
+          });
+        } catch (err: any) {
+          Alert.alert('Error', err.response?.data?.message || 'No se pudo procesar el ticket');
+        } finally {
+          setScanLoading(false);
+        }
       },
-    ]);
+    );
   };
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  if (isLoading) return <LoadingScreen />;
+  if (isError) return <ErrorMessage message="No se pudieron cargar los movimientos." onRetry={refetch} />;
 
-  if (isError) {
-    return (
-      <ErrorMessage
-        message="No se pudieron cargar los movimientos."
-        onRetry={refetch}
-      />
-    );
-  }
+  const chip = (selected: boolean) => [
+    styles.chip,
+    { borderColor: colors.border, backgroundColor: colors.bgCard },
+    selected && { borderColor: colors.green, backgroundColor: colors.greenLight },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <FlatList
-        data={transactions}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
+      {/* Filtros en una sola fila */}
+      <View style={styles.filters}>
+        {(['ALL', 'EXPENSE', 'INCOME'] as Filter[]).map(f => (
+          <TouchableOpacity key={f} style={chip(filter === f)} onPress={() => setFilter(f)}>
+            <Text style={[styles.chipText, { color: filter === f ? colors.green : colors.textSecondary }]}>
+              {f === 'ALL' ? 'Todos' : f === 'EXPENSE' ? 'Gastos' : 'Ingresos'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity style={chip(!!category)} onPress={() => setCategoryPicker(true)}>
+          <Text style={[styles.chipText, { color: category ? colors.green : colors.textSecondary }]} numberOfLines={1}>
+            {category || 'Categoría'} ▾
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.sortBtn}
+          onPress={() => setSort(SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length])}
+          accessibilityLabel={`Orden: ${SORT_LABEL[sort]}`}
+        >
+          <Icon name="sort" size={iconSize.md} color={sort === 'date-desc' ? colors.textSecondary : colors.green} />
+        </TouchableOpacity>
+      </View>
+      {sort !== 'date-desc' && (
+        <Text style={[styles.sortHint, { color: colors.textMuted }]}>Orden: {SORT_LABEL[sort]}</Text>
+      )}
+
+      <SectionList
+        sections={sections}
+        keyExtractor={t => t.id}
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -343,216 +194,29 @@ export default function TransactionsScreen() {
             tintColor={colors.green}
           />
         }
-        ListHeaderComponent={
-          <View style={styles.filterSection}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRow}
-            >
-              {(['ALL', 'INCOME', 'EXPENSE'] as const).map(t => (
-                <TouchableOpacity
-                  key={t}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.bgSecondary,
-                    },
-                    filterType === t && {
-                      backgroundColor: colors.green,
-                      borderColor: colors.green,
-                    },
-                  ]}
-                  onPress={() => setFilterType(t)}
-                >
-                  <Text
-                    style={[
-                      { color: colors.text },
-                      filterType === t && { color: colors.bg, ...styles.fontWeight600 },
-                    ]}
-                  >
-                    {t === 'ALL'
-                      ? 'Todos'
-                      : t === 'INCOME'
-                      ? 'Ingresos'
-                      : 'Gastos'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={styles.sortRow}>
-              <TouchableOpacity
-                style={styles.sortBtn}
-                onPress={() => {
-                  if (sortBy === 'date') {
-                    setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
-                  } else {
-                    setSortBy('date');
-                    setSortOrder('desc');
-                  }
-                }}
-              >
-                <Text
-                  style={[
-                    styles.sortBtnText,
-                    { color: colors.textSecondary },
-                    sortBy === 'date' && { color: colors.green, ...styles.fontWeight700 },
-                  ]}
-                >
-                  Fecha{' '}
-                  {sortBy === 'date' && (
-                    <Icon
-                      name={sortOrder === 'desc' ? 'arrow-down' : 'arrow-up'}
-                      size={iconSize.sm}
-                      color={colors.green}
-                    />
-                  )}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.sortBtn}
-                onPress={() => {
-                  if (sortBy === 'amount') {
-                    setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
-                  } else {
-                    setSortBy('amount');
-                    setSortOrder('desc');
-                  }
-                }}
-              >
-                <Text
-                  style={[
-                    styles.sortBtnText,
-                    { color: colors.textSecondary },
-                    sortBy === 'amount' && { color: colors.green, ...styles.fontWeight700 },
-                  ]}
-                >
-                  Monto{' '}
-                  {sortBy === 'amount' && (
-                    <Icon
-                      name={sortOrder === 'desc' ? 'arrow-down' : 'arrow-up'}
-                      size={iconSize.sm}
-                      color={colors.green}
-                    />
-                  )}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {allCategories && allCategories.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterRow}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.bgSecondary,
-                    },
-                    filterCategory === '' && {
-                      backgroundColor: colors.green,
-                      borderColor: colors.green,
-                    },
-                  ]}
-                  onPress={() => setFilterCategory('')}
-                >
-                  <Text
-                    style={[
-                      { color: colors.text },
-                      filterCategory === '' && { color: colors.bg, ...styles.fontWeight600 },
-                    ]}
-                  >
-                    Todas
-                  </Text>
-                </TouchableOpacity>
-                {allCategories
-                  .filter(
-                    c =>
-                      filterType === 'ALL' ||
-                      c.type === filterType ||
-                      c.type === 'BOTH',
-                  )
-                  .map(c => (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[
-                        styles.filterChip,
-                        {
-                          borderColor: colors.border,
-                          backgroundColor: colors.bgSecondary,
-                        },
-                        filterCategory === c.name && {
-                          backgroundColor: colors.green,
-                          borderColor: colors.green,
-                        },
-                      ]}
-                      onPress={() =>
-                        setFilterCategory(prev =>
-                          prev === c.name ? '' : c.name,
-                        )
-                      }
-                    >
-                      <Text
-                        style={[
-                          { color: colors.text },
-                          filterCategory === c.name && { color: colors.bg, ...styles.fontWeight600 },
-                        ]}
-                      >
-                        {c.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-              </ScrollView>
+        renderSectionHeader={({ section }) => (
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{section.title}</Text>
+            {section.total > 0 && (
+              <Text style={[styles.sectionTotal, { color: colors.textMuted }]}>−{money(section.total)}</Text>
             )}
-
-            <TouchableOpacity
-              style={[styles.exportBtn, { borderColor: colors.border }]}
-              onPress={async () => {
-                try {
-                  const res = await api.get('/transactions/export/csv', {
-                    responseType: 'text',
-                  });
-                  // ponytail: se comparte como texto (Share de RN), no como archivo .csv;
-                  // Android limita el tamaño del intent (~500 KB), suficiente para años de gastos.
-                  await Share.share({
-                    title: `varo-transacciones-${todayIso()}.csv`,
-                    message: res.data,
-                  });
-                } catch (err: any) {
-                  Alert.alert('Error', 'No se pudo exportar: ' + (err.message || 'Error desconocido'));
-                }
-              }}
-            >
-              <Text style={[styles.exportBtnText, { color: colors.green }]}>
-                <Icon name="tray-arrow-up" size={iconSize.sm} color={colors.green} /> Exportar CSV
-              </Text>
-            </TouchableOpacity>
           </View>
-        }
+        )}
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => showActionMenu(item)}>
+          <TouchableOpacity onPress={() => quickAdd.open({ edit: item })}>
             <TransactionItem transaction={item} />
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="clipboard-text-outline" size={iconSize.lg} color={colors.textSecondary} style={styles.emptyEmoji} />
-            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
-              Sin movimientos
-            </Text>
+          <View style={styles.empty}>
+            <Icon name="receipt-text-outline" size={48} color={colors.textMuted} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-              Registra tu primer ingreso o gasto.
+              {filter !== 'ALL' || category ? 'Nada con estos filtros.' : 'Aún no hay movimientos. Toca + para registrar uno.'}
             </Text>
           </View>
         }
       />
 
-      {/* FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.green }]}
         onPress={() => {
@@ -560,20 +224,20 @@ export default function TransactionsScreen() {
           quickAdd.open();
         }}
         activeOpacity={0.8}
+        accessibilityLabel="Registrar gasto"
       >
         <Text style={[styles.fabText, { color: colors.bg }]}>+</Text>
       </TouchableOpacity>
 
-      {/* Escanear ticket */}
       <TouchableOpacity
         style={[styles.scanFab, { backgroundColor: colors.bgCard, borderColor: colors.green }]}
         onPress={() => setFabMenuVisible(!fabMenuVisible)}
         activeOpacity={0.8}
+        accessibilityLabel="Escanear ticket"
       >
         <Icon name="camera-outline" size={iconSize.md} color={colors.green} />
       </TouchableOpacity>
 
-      {/* FAB Menu */}
       {[
         { icon: 'image-multiple-outline', label: 'Escanear de galería', onPress: () => pickImage(false) },
         { icon: 'camera', label: 'Escanear con cámara', onPress: () => pickImage(true) },
@@ -591,183 +255,40 @@ export default function TransactionsScreen() {
         />
       ))}
 
-      {/* Scan loading overlay */}
       {scanLoading && (
-        <View
-          style={[
-            styles.scanOverlay,
-            { backgroundColor: colors.bgModalOverlay },
-          ]}
-        >
+        <View style={[styles.scanOverlay, { backgroundColor: colors.bgModalOverlay }]}>
           <ActivityIndicator size="large" color={colors.green} />
-          <Text style={[styles.scanText, { color: colors.text }]}>
-            Analizando ticket...
-          </Text>
+          <Text style={[styles.scanText, { color: colors.text }]}>Analizando ticket...</Text>
         </View>
       )}
 
-      {/* Edit Modal */}
-      <Modal visible={editModalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          style={styles.flexFill}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View
-            style={[
-              styles.modalOverlay,
-              { backgroundColor: colors.bgModalOverlay },
-            ]}
-          >
-            <ScrollView
-              style={[styles.modalContent, { backgroundColor: colors.bg }]}
-            >
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Editar movimiento
-              </Text>
-              {editingTransaction && isLinkedCategory(editingTransaction.category) && (
-                <Text style={[styles.linkedWarning, { color: colors.textSecondary }]}>
-                  <Icon name="link-variant" size={iconSize.sm} color={colors.textSecondary} /> Este
-                  movimiento se generó automáticamente desde una deuda o meta. Cambiar el monto
-                  también ajustará ese saldo.
-                </Text>
-              )}
-              <TransactionForm
-                control={control}
-                selectedType={selectedType}
-                categories={categories}
-                showCategoryInput={showCategoryInput}
-                setShowCategoryInput={setShowCategoryInput}
-                onSubmit={handleSubmit(onEditSubmit)}
-                onCancel={() => {
-                  setEditModalVisible(false);
-                  setShowCategoryInput(false);
-                  reset();
-                  setEditingTransaction(null);
-                }}
-                isPending={updateMutation.isPending}
-              />
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Scan Preview Modal - EDITABLE */}
-      <Modal visible={scanModalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          style={styles.flexFill}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View
-            style={[
-              styles.modalOverlay,
-              { backgroundColor: colors.bgModalOverlay },
-            ]}
-          >
-            <ScrollView
-              style={[styles.modalContent, { backgroundColor: colors.bg }]}
-            >
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Ticket detectado
-              </Text>
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Monto
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: colors.border, color: colors.text },
-                ]}
-                placeholder="Ej: 500"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="decimal-pad"
-                value={scanAmount}
-                onChangeText={setScanAmount}
-              />
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Categoría
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: colors.border, color: colors.text },
-                ]}
-                placeholder="Ej: Supermercado, Comida..."
-                placeholderTextColor={colors.textMuted}
-                value={scanCategory}
-                onChangeText={setScanCategory}
-              />
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Lugar / Establecimiento
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: colors.border, color: colors.text },
-                ]}
-                placeholder="Ej: Walmart, Starbucks..."
-                placeholderTextColor={colors.textMuted}
-                value={scanNote}
-                onChangeText={setScanNote}
-              />
-
-              <DateField value={scanDate} onChange={setScanDate} />
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Tipo
-              </Text>
-              <View style={styles.typeRow}>
+      <Modal visible={categoryPicker} transparent animationType="fade" onRequestClose={() => setCategoryPicker(false)}>
+        <Pressable style={[styles.overlay, { backgroundColor: colors.bgModalOverlay }]} onPress={() => setCategoryPicker(false)}>
+          <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
+            <ScrollView contentContainerStyle={styles.options}>
+              {['', ...usedCategories].map(name => (
                 <TouchableOpacity
-                  style={[
-                    styles.typeBtn,
-                    { borderColor: colors.border },
-                    scanType === 'INCOME' && {
-                      backgroundColor: colors.greenLight,
-                      borderColor: colors.green,
-                    },
-                  ]}
-                  onPress={() => setScanType('INCOME')}
-                >
-                  <Text><Icon name="cash-plus" size={iconSize.sm} color={colors.text} /> Ingreso</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.typeBtn,
-                    { borderColor: colors.border },
-                    scanType === 'EXPENSE' && {
-                      backgroundColor: colors.greenLight,
-                      borderColor: colors.green,
-                    },
-                  ]}
-                  onPress={() => setScanType('EXPENSE')}
-                >
-                  <Text><Icon name="cash-minus" size={iconSize.sm} color={colors.text} /> Gasto</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Button
-                title="Confirmar y guardar"
-                onPress={confirmScanned}
-              />
-              <View style={styles.cancelBtn}>
-                <Button
-                  title="Cancelar"
+                  key={name || '_all'}
+                  style={chip(category === name)}
                   onPress={() => {
-                    setScanModalVisible(false);
-                    setScanAmount('');
-                    setScanCategory('');
-                    setScanNote('');
-                    setScanDate('');
-                    setScanType('EXPENSE');
+                    setCategory(name);
+                    setCategoryPicker(false);
                   }}
-                  variant="ghost"
-                />
-              </View>
+                >
+                  <Text style={[styles.chipText, { color: colors.text }]}>
+                    {name ? (
+                      <>
+                        <Icon name={categoryStyle(name).icon} size={14} color={categoryStyle(name).color} /> {name}
+                      </>
+                    ) : (
+                      'Todas'
+                    )}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -796,7 +317,6 @@ function FabMenuItem({
     opacity: progress,
     transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [20 * (index + 1), 0] }) }],
   };
-
   return (
     <Animated.View
       style={[styles.fabMenuItemWrapper, itemStyle, { bottom: 84 + index * 52 }]}
@@ -811,27 +331,18 @@ function FabMenuItem({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 12,
-    paddingRight: 8,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  emptyEmoji: {
-    marginBottom: 4,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  emptyText: {
-    fontSize: 13,
-    textAlign: 'center',
-  },
+  container: { flex: 1 },
+  filters: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingTop: 12 },
+  chip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, maxWidth: 140 },
+  chipText: { fontSize: 13 },
+  sortBtn: { marginLeft: 'auto', padding: 6 },
+  sortHint: { fontSize: 12, paddingHorizontal: 16, marginTop: 4 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 100 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, marginBottom: 2 },
+  sectionTitle: { fontSize: 13, fontWeight: '700' },
+  sectionTotal: { fontSize: 13 },
+  empty: { alignItems: 'center', marginTop: 64, gap: 12 },
+  emptyText: { fontSize: 14, textAlign: 'center' },
   scanFab: {
     position: 'absolute',
     right: 88,
@@ -854,145 +365,24 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
     elevation: 5,
     zIndex: 10,
   },
-  fabText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  fabMenuItemWrapper: {
-    position: 'absolute',
-    right: 20,
-    zIndex: 9,
-  },
+  fabText: { fontSize: 28, fontWeight: '600', marginTop: -2 },
+  fabMenuItemWrapper: { position: 'absolute', right: 20, zIndex: 9 },
   fabMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  fabMenuText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  scanOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 100,
-  },
-  scanText: {
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  modalContent: {
-    borderRadius: 12,
-    padding: 24,
-    maxHeight: '85%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  linkedWarning: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  typeBtn: {
-    flex: 1,
-    padding: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    marginHorizontal: 4,
-    borderRadius: 8,
-  },
-  cancelBtn: {
-    marginTop: 8,
-  },
-  filterSection: {
-    marginBottom: 8,
-    gap: 6,
-  },
-  filterRow: {
-    gap: 6,
-    paddingVertical: 2,
-  },
-  filterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginRight: 6,
-  },
-  sortRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  sortBtn: {
-    paddingVertical: 2,
-  },
-  sortBtnText: {
-    fontSize: 13,
-  },
-  fontWeight700: {
-    fontWeight: '700',
-  },
-  fontWeight600: {
-    fontWeight: '600',
-  },
-  flexFill: {
-    flex: 1,
-  },
-  exportBtn: {
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    paddingHorizontal: 16,
     borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 4,
+    elevation: 3,
   },
-  exportBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  fabMenuText: { fontSize: 14, fontWeight: '500' },
+  scanOverlay: { ...StyleSheet.absoluteFill, justifyContent: 'center', alignItems: 'center', zIndex: 20 },
+  scanText: { marginTop: 12, fontSize: 16 },
+  overlay: { flex: 1, justifyContent: 'center', padding: 24 },
+  sheet: { borderRadius: 16, padding: 16, maxHeight: '70%' },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });
