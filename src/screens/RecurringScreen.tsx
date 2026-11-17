@@ -21,9 +21,9 @@ import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import Button from '../components/Button';
 import DateField, { todayIso } from '../components/DateField';
+import { splitOccurrences, type Frequency } from '../utils/occurrences';
 import type { Category } from '../types';
 
-type Frequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'YEARLY';
 type TxType = 'INCOME' | 'EXPENSE';
 
 interface Recurring {
@@ -70,20 +70,23 @@ export default function RecurringScreen() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ['recurring'] });
   const onError = (err: any) => Alert.alert('Error', err.response?.data?.message || 'No se pudo guardar');
 
+  // Los pagos que ya pasaron se registran de una vez; el backend sigue desde el siguiente.
   const create = useMutation({
-    mutationFn: () =>
-      api.post('/recurring-transactions', {
-        amount: Number(amount.replace(',', '.')),
-        type,
-        category: category.trim(),
-        note: note.trim() || undefined,
-        frequency,
-        startDate,
-      }),
-    onSuccess: () => {
+    mutationFn: async ({ next, backfill }: { next: string; backfill: string[] }) => {
+      const base = { amount: parsedAmount, type, category: category.trim(), note: note.trim() || undefined };
+      if (backfill.length) {
+        await api.post('/transactions/bulk', { transactions: backfill.map(date => ({ ...base, date })) });
+      }
+      await api.post('/recurring-transactions', { ...base, frequency, startDate: next });
+      return backfill.length;
+    },
+    onSuccess: n => {
       invalidate();
+      for (const key of ['transactions', 'categories', 'goals', 'forecast']) {
+        qc.invalidateQueries({ queryKey: [key] });
+      }
       setFormVisible(false);
-      showToast('Gasto fijo guardado');
+      showToast(n ? `Guardado, con ${n} pagos anteriores` : 'Gasto fijo guardado');
     },
     onError,
   });
@@ -108,12 +111,28 @@ export default function RecurringScreen() {
     setFormVisible(true);
   };
 
+  const parsedAmount = Number(amount.replace(',', '.'));
+
   const submit = () => {
-    if (!(Number(amount.replace(',', '.')) > 0) || !category.trim()) {
+    if (!(parsedAmount > 0) || !category.trim()) {
       Alert.alert('Faltan datos', 'Escribe el monto y la categoría.');
       return;
     }
-    create.mutate();
+    const { past, next } = splitOccurrences(startDate, frequency, todayIso());
+    if (!past.length) {
+      create.mutate({ next, backfill: [] });
+      return;
+    }
+    const total = (past.length * parsedAmount).toLocaleString('es-MX');
+    Alert.alert(
+      'Pagos anteriores',
+      `Desde el primer pago van ${past.length} (${past[0]} a ${past[past.length - 1]}). ¿Los registro también? Serían $${total}.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Solo los siguientes', onPress: () => create.mutate({ next, backfill: [] }) },
+        { text: `Registrar ${past.length}`, onPress: () => create.mutate({ next, backfill: past }) },
+      ],
+    );
   };
 
   if (isLoading) return <LoadingScreen />;
@@ -133,7 +152,7 @@ export default function RecurringScreen() {
         keyExtractor={r => r.id}
         ListHeaderComponent={
           <Text style={[styles.help, { color: colors.textSecondary }]}>
-            Se registran solos cada periodo, a partir de la fecha de inicio.
+            Se registran solos cada periodo. Si el primer pago ya pasó (por ejemplo, tu sueldo semanal desde hace un mes), puedes registrar esos pagos de una vez.
           </Text>
         }
         ListEmptyComponent={
@@ -216,7 +235,7 @@ export default function RecurringScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <DateField value={startDate} onChange={setStartDate} label="Empieza" />
+            <DateField value={startDate} onChange={setStartDate} label="Primer pago (puede ser en el pasado)" />
             <Button title="Guardar" onPress={submit} loading={create.isPending} />
             <Button title="Cancelar" onPress={() => setFormVisible(false)} variant="ghost" />
           </ScrollView>

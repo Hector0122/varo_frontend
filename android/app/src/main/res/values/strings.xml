@@ -2,5 +2,5 @@
     <string name="app_name">Varo</string>
     <string name="atajo_gasto">Registrar gasto</string>
     <string name="widget_gasto">Gasto rápido</string>
-    <string name="widget_gasto_descripcion">Registra un gasto con tus categorías frecuentes</string>
+    <string name="widget_gasto_descripcion">Botón para registrar un gasto</string>
 </resources>
