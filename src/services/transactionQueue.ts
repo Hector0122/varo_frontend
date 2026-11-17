@@ -16,6 +16,8 @@ async function readQueue(): Promise<NewTransaction[]> {
   }
 }
 
+export const clearQueue = () => AsyncStorage.removeItem(QUEUE_KEY);
+
 export const pendingCount = async () => (await readQueue()).length;
 
 function refresh(qc: QueryClient) {
