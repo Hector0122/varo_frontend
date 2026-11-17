@@ -1,18 +1,33 @@
 import { parseIsoDate, toIsoDate } from './dates';
 
-export type Frequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'YEARLY';
+export type Frequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'BIMONTHLY' | 'YEARLY';
 
-/** n-ésima fecha a partir de la primera (mensual/anual se ajusta a fin de mes). */
-function nth(first: Date, frequency: Frequency, n: number): Date {
+const MONTHS: Partial<Record<Frequency, number>> = { MONTHLY: 1, BIMONTHLY: 2, YEARLY: 12 };
+
+/** n-ésima fecha a partir de la primera (los meses se ajustan a fin de mes sin correrse). */
+export function nthDate(first: Date, frequency: Frequency | 'DAILY', n: number): Date {
   const y = first.getFullYear();
   const m = first.getMonth();
   const d = first.getDate();
+  if (frequency === 'DAILY') return new Date(y, m, d + n);
   if (frequency === 'WEEKLY' || frequency === 'BIWEEKLY') {
     return new Date(y, m, d + n * (frequency === 'WEEKLY' ? 7 : 14));
   }
-  const months = frequency === 'MONTHLY' ? n : n * 12;
+  const months = MONTHS[frequency]! * n;
   const lastDay = new Date(y, m + months + 1, 0).getDate();
   return new Date(y, m + months, Math.min(d, lastDay));
+}
+
+/** Fechas ISO de `first` según la frecuencia que caen en (after, until]. */
+export function datesBetween(firstIso: string, frequency: Frequency | 'DAILY', afterIso: string, untilIso: string) {
+  const first = parseIsoDate(firstIso);
+  const out: string[] = [];
+  for (let n = 0; n < 5000; n++) {
+    const iso = toIsoDate(nthDate(first, frequency, n));
+    if (iso > untilIso) break;
+    if (iso > afterIso) out.push(iso);
+  }
+  return out;
 }
 
 /**
@@ -23,7 +38,7 @@ export function splitOccurrences(firstIso: string, frequency: Frequency, todayIs
   const first = parseIsoDate(firstIso);
   const past: string[] = [];
   for (let n = 0; n < 1000; n++) {
-    const iso = toIsoDate(nth(first, frequency, n));
+    const iso = toIsoDate(nthDate(first, frequency, n));
     if (iso > todayIso) return { past, next: iso };
     past.push(iso);
   }

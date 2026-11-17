@@ -1,8 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, RefreshControl, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { requestWidgetUpdate } from 'react-native-android-widget';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -10,7 +8,6 @@ import { api } from '../services/api';
 import { objectivesApi } from '../services/objectives';
 import { iconSize } from '../theme/tokens';
 import SummaryCard from '../components/SummaryCard';
-import ForecastWidget from '../components/ForecastWidget';
 import DebtCard from '../components/DebtCard';
 import DebtPaymentHistoryModal from '../components/DebtPaymentHistoryModal';
 import StatementDayPicker from '../components/StatementDayPicker';
@@ -22,8 +19,8 @@ import { useQuickAdd } from '../components/QuickAdd';
 import { pendingCount } from '../services/transactionQueue';
 import CategoryBreakdown from '../components/CategoryBreakdown';
 import { byCategory, inMonth, monthKey, monthLabel, shiftMonth } from '../utils/months';
-import GoalWidget, { EmptyGoalWidget, type GoalWidgetData } from '../widget/GoalWidget';
-import type { Transaction, FinancialObjective, Forecast, MonthlySpendingEntry } from '../types';
+import { isLinkedCategory } from '../constants/systemCategories';
+import type { Transaction, FinancialObjective, MonthlySpendingEntry } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 export default function DashboardScreen() {
@@ -48,19 +45,6 @@ export default function DashboardScreen() {
       const res = await api.get('/transactions');
       return res.data;
     },
-  });
-
-  const { data: goals, isLoading: goalsLoading, isError: goalsError, refetch: goalsRefetch } = useQuery<FinancialObjective[]>({
-    queryKey: ['goals'],
-    queryFn: () => objectivesApi.list('SAVING_GOAL'),
-  });
-
-  const mainGoal = goals?.[0];
-
-  const { data: forecast, isLoading: forecastLoading } = useQuery<Forecast | null>({
-    queryKey: ['forecast', mainGoal?.id],
-    queryFn: () => (mainGoal ? objectivesApi.getForecast(mainGoal.id) : null),
-    enabled: !!mainGoal,
   });
 
   const { data: debts, refetch: debtsRefetch } = useQuery<FinancialObjective[]>({
@@ -97,32 +81,9 @@ export default function DashboardScreen() {
     },
   });
 
-  useEffect(() => {
-    if (mainGoal && forecast) {
-      const widgetData: GoalWidgetData = {
-        goalName: mainGoal.name,
-        estimatedDays: forecast.estimatedDays,
-        estimatedDate: new Date(forecast.estimatedDate).toLocaleDateString('es-MX', {
-          year: 'numeric',
-          month: 'long',
-        }),
-      };
-      AsyncStorage.setItem('GoalWidget:data', JSON.stringify(widgetData));
-      requestWidgetUpdate({
-        widgetName: 'GoalWidget',
-        renderWidget: () => <GoalWidget data={widgetData} />,
-      });
-    } else if (goals && goals.length === 0) {
-      AsyncStorage.removeItem('GoalWidget:data');
-      requestWidgetUpdate({
-        widgetName: 'GoalWidget',
-        renderWidget: () => <EmptyGoalWidget />,
-      });
-    }
-  }, [mainGoal, forecast, goals]);
-
   // Totales del mes elegido (antes eran de todo el historial).
-  const monthTx = inMonth(transactions ?? [], month);
+  // Pagos de tarjeta y movimientos de ahorro son transferencias: no cuentan como gasto ni ingreso.
+  const monthTx = inMonth(transactions ?? [], month).filter(t => !isLinkedCategory(t.category));
   const totalIncome = monthTx.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0);
   const totalExpense = monthTx.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0);
   const isCurrentMonth = month === monthKey(new Date());
@@ -131,21 +92,20 @@ export default function DashboardScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([txRefetch(), goalsRefetch(), debtsRefetch()]);
+    await Promise.all([txRefetch(), debtsRefetch()]);
     setRefreshing(false);
-  }, [txRefetch, goalsRefetch, debtsRefetch]);
+  }, [txRefetch, debtsRefetch]);
 
-  if (txLoading || goalsLoading) {
+  if (txLoading) {
     return <LoadingScreen />;
   }
 
-  if (txError || goalsError) {
+  if (txError) {
     return (
       <ErrorMessage
         message="No se pudieron cargar los datos del dashboard."
         onRetry={() => {
           txRefetch();
-          goalsRefetch();
         }}
       />
     );
@@ -240,29 +200,9 @@ export default function DashboardScreen() {
         </>
       )}
 
-      {mainGoal && (
-        <>
-          {forecastLoading ? (
-            <View style={styles.forecastLoader}>
-              <ActivityIndicator size="small" color={colors.green} />
-            </View>
-          ) : forecast ? (
-            <ForecastWidget forecast={forecast} goal={mainGoal} compact />
-          ) : null}
-        </>
-      )}
-
-      {!mainGoal && (
-        <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Metas' })}>
-          <Text style={[styles.inlineLink, { color: colors.green }]}>
-            <Icon name="target" size={iconSize.sm} color={colors.green} /> Crear una meta de ahorro ›
-          </Text>
-        </TouchableOpacity>
-      )}
-
       {/* Debts Section */}
       {!!debts?.length && (
-        <Text style={[styles.header, styles.debtsHeader, { color: colors.text }]}>Deudas</Text>
+        <Text style={[styles.header, styles.debtsHeader, { color: colors.text }]}>Tarjetas y deudas</Text>
       )}
       {debts && debts.length > 0 ? (
         debts.map(debt => {

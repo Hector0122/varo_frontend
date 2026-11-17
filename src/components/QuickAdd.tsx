@@ -15,6 +15,8 @@ import {
   View,
 } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { objectivesApi } from '../services/objectives';
 import { api } from '../services/api';
 import { flushQueue, saveTransaction } from '../services/transactionQueue';
 import { sortByFrequency } from '../utils/frequency';
@@ -25,7 +27,9 @@ import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import DateField, { todayIso } from './DateField';
 import Button from './Button';
-import type { Category, Transaction } from '../types';
+import type { Category, FinancialObjective, Transaction } from '../types';
+
+const PAID_WITH_KEY = 'quickadd:paidWith';
 
 type TxType = 'INCOME' | 'EXPENSE';
 interface OpenOptions {
@@ -68,6 +72,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
   const [date, setDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [paidWith, setPaidWith] = useState<string | null>(null); // id de tarjeta o 'cash'
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ['categories', 'all'],
@@ -78,6 +83,26 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
     queryKey: ['transactions'],
     queryFn: async () => (await api.get('/transactions')).data,
   });
+
+  const { data: cards } = useQuery<FinancialObjective[]>({
+    queryKey: ['debts'],
+    queryFn: () => objectivesApi.list('DEBT_PAYOFF'),
+  });
+  // Con qué pagaste: se recuerda el último; si no hay, la tarjeta BBVA o la primera.
+  useEffect(() => {
+    AsyncStorage.getItem(PAID_WITH_KEY)
+      .then(v => setPaidWith(p => p ?? v))
+      .catch(() => {});
+  }, []);
+  const paidWithValid =
+    paidWith === 'cash' || cards?.some(c => c.id === paidWith)
+      ? (paidWith as string)
+      : (cards?.find(c => /bbva/i.test(c.name)) ?? cards?.[0])?.id ?? 'cash';
+  const choosePaidWith = (v: string) => {
+    setPaidWith(v);
+    AsyncStorage.setItem(PAID_WITH_KEY, v).catch(() => {});
+  };
+  const showPaidWith = !editing && type === 'EXPENSE' && !!cards?.length;
 
   const sorted = useCallback(
     (t: TxType) =>
@@ -143,7 +168,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
           type,
           date,
         });
-        for (const key of ['transactions', 'goals', 'forecast', 'debts', 'monthly-spending']) {
+        for (const key of ['transactions', 'debts', 'monthly-spending']) {
           qc.invalidateQueries({ queryKey: [key] });
         }
         setVisible(false);
@@ -159,6 +184,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
       const result = await saveTransaction(
         { amount: value, category: name, note: note.trim() || undefined, type, date },
         qc,
+        showPaidWith && paidWithValid !== 'cash' ? paidWithValid : undefined,
       );
       if (result === 'saved' && !categories?.some(c => c.name === name)) {
         api.post('/categories', { name, type }).then(() => qc.invalidateQueries({ queryKey: ['categories'] }), () => {});
@@ -268,6 +294,27 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
                   />
                 </View>
 
+                {showPaidWith && (
+                  <View style={styles.paidRow}>
+                    <Text style={[styles.paidLabel, { color: colors.textSecondary }]}>Pagado con</Text>
+                    {[...cards!.map(c => ({ id: c.id, name: c.name })), { id: 'cash', name: 'Efectivo' }].map(o => (
+                      <TouchableOpacity
+                        key={o.id}
+                        onPress={() => choosePaidWith(o.id)}
+                        style={[
+                          styles.paidChip,
+                          { borderColor: colors.border },
+                          paidWithValid === o.id && { backgroundColor: colors.greenLight, borderColor: colors.green },
+                        ]}
+                      >
+                        <Text style={{ color: paidWithValid === o.id ? colors.green : colors.textSecondary }}>
+                          {o.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
                 <Text style={[styles.hint, { color: colors.textMuted }]}>
                   {category
                     ? `Categoría: ${category}`
@@ -354,6 +401,9 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   title: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
+  paidRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 8 },
+  paidLabel: { fontSize: 13 },
+  paidChip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '85%' },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
