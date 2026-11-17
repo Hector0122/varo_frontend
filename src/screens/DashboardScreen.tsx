@@ -20,6 +20,8 @@ import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import { useQuickAdd } from '../components/QuickAdd';
 import { pendingCount } from '../services/transactionQueue';
+import CategoryBreakdown from '../components/CategoryBreakdown';
+import { byCategory, inMonth, monthKey, monthLabel, shiftMonth } from '../utils/months';
 import GoalWidget, { EmptyGoalWidget, type GoalWidgetData } from '../widget/GoalWidget';
 import type { Transaction, FinancialObjective, Forecast, MonthlySpendingEntry } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -32,6 +34,7 @@ export default function DashboardScreen() {
   const quickAdd = useQuickAdd();
   const { data: pending } = useQuery({ queryKey: ['pending'], queryFn: pendingCount });
   const [refreshing, setRefreshing] = useState(false);
+  const [month, setMonth] = useState(() => monthKey(new Date()));
   const [debtModalVisible, setDebtModalVisible] = useState(false);
   const [debtName, setDebtName] = useState('');
   const [debtTotal, setDebtTotal] = useState('');
@@ -118,8 +121,12 @@ export default function DashboardScreen() {
     }
   }, [mainGoal, forecast, goals]);
 
-  const totalIncome = transactions?.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;
-  const totalExpense = transactions?.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0) ?? 0;
+  // Totales del mes elegido (antes eran de todo el historial).
+  const monthTx = inMonth(transactions ?? [], month);
+  const totalIncome = monthTx.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalExpense = monthTx.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0);
+  const isCurrentMonth = month === monthKey(new Date());
+  const isEmpty = (transactions?.length ?? 0) === 0;
   const netSaving = totalIncome - totalExpense;
 
   const onRefresh = useCallback(async () => {
@@ -170,14 +177,68 @@ export default function DashboardScreen() {
         </Text>
       )}
 
-      <Text style={[styles.header, { color: colors.text }]}>Resumen</Text>
-      <View style={styles.row}>
-        <SummaryCard title="Ingresos" amount={totalIncome} color={colors.green} icon="trending-up" compact />
-        <SummaryCard title="Gastos" amount={totalExpense} color={colors.red} icon="trending-down" compact />
-      </View>
-      <View style={styles.row}>
-        <SummaryCard title="Ahorro neto" amount={netSaving} color={netSaving >= 0 ? colors.green : colors.red} icon="piggy-bank" compact />
-      </View>
+      {isEmpty && (
+        <>
+          <Text style={[styles.header, { color: colors.text }]}>Para empezar</Text>
+          <TouchableOpacity
+            style={[styles.startCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('ImportStatement')}
+          >
+            <Icon name="file-document-outline" size={iconSize.lg} color={colors.green} />
+            <View style={styles.startText}>
+              <Text style={[styles.startTitle, { color: colors.text }]}>Importa tu estado de cuenta</Text>
+              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+                Sube el PDF del banco y carga todos los gastos del mes de una vez.
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.startCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('Recurring')}
+          >
+            <Icon name="cash-plus" size={iconSize.lg} color={colors.green} />
+            <View style={styles.startText}>
+              <Text style={[styles.startTitle, { color: colors.text }]}>Agrega tu sueldo como ingreso fijo</Text>
+              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+                Se registra solo cada semana o quincena, y puedes cargar los pagos anteriores.
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {!isEmpty && (
+        <>
+          <View style={styles.monthRow}>
+            <TouchableOpacity onPress={() => setMonth(shiftMonth(month, -1))} style={styles.monthBtn} accessibilityLabel="Mes anterior">
+              <Icon name="chevron-left" size={iconSize.md} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.header, styles.monthTitle, { color: colors.text }]}>{monthLabel(month)}</Text>
+            <TouchableOpacity
+              onPress={() => setMonth(shiftMonth(month, 1))}
+              style={styles.monthBtn}
+              disabled={isCurrentMonth}
+              accessibilityLabel="Mes siguiente"
+            >
+              <Icon name="chevron-right" size={iconSize.md} color={isCurrentMonth ? colors.textMuted : colors.text} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.row}>
+            <SummaryCard title="Ingresos" amount={totalIncome} color={colors.green} icon="trending-up" compact />
+            <SummaryCard title="Gastos" amount={totalExpense} color={colors.red} icon="trending-down" compact />
+          </View>
+          <View style={styles.row}>
+            <SummaryCard title="Balance del mes" amount={netSaving} color={netSaving >= 0 ? colors.green : colors.red} icon="piggy-bank" compact />
+          </View>
+
+          <Text style={[styles.header, styles.sectionGap, { color: colors.text }]}>¿En qué se me va?</Text>
+          {totalExpense > 0 ? (
+            <CategoryBreakdown items={byCategory(monthTx)} />
+          ) : (
+            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Sin gastos este mes.</Text>
+          )}
+        </>
+      )}
 
       {mainGoal && (
         <>
@@ -192,15 +253,17 @@ export default function DashboardScreen() {
       )}
 
       {!mainGoal && (
-        <View style={[styles.emptyCard, { backgroundColor: colors.bgCard }]}>
-          <Icon name="target" size={iconSize.lg} color={colors.textSecondary} style={styles.emptyEmoji} />
-          <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Sin metas activas</Text>
-          <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Crea tu primera meta para ver el forecast.</Text>
-        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Metas' })}>
+          <Text style={[styles.inlineLink, { color: colors.green }]}>
+            <Icon name="target" size={iconSize.sm} color={colors.green} /> Crear una meta de ahorro ›
+          </Text>
+        </TouchableOpacity>
       )}
 
       {/* Debts Section */}
-      <Text style={[styles.header, styles.debtsHeader, { color: colors.text }]}>Deudas</Text>
+      {!!debts?.length && (
+        <Text style={[styles.header, styles.debtsHeader, { color: colors.text }]}>Deudas</Text>
+      )}
       {debts && debts.length > 0 ? (
         debts.map(debt => {
           const spending = monthlySpendingData?.find(s => s.debtId === debt.id);
@@ -223,13 +286,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           );
         })
-      ) : (
-        <View style={[styles.emptyCard, { backgroundColor: colors.bgCard }]}>
-          <Icon name="credit-card-outline" size={iconSize.lg} color={colors.textSecondary} style={styles.emptyEmoji} />
-          <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Sin deudas</Text>
-          <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Agrega una deuda para darle seguimiento.</Text>
-        </View>
-      )}
+      ) : null}
 
       <TouchableOpacity
         style={[styles.addDebtBtn, { borderColor: colors.green }]}
@@ -353,6 +410,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 12,
+  },
+  monthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  monthBtn: {
+    padding: 6,
+  },
+  monthTitle: {
+    marginBottom: 0,
+  },
+  sectionGap: {
+    marginTop: 16,
+  },
+  startCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  startText: {
+    flex: 1,
+  },
+  startTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  inlineLink: {
+    fontSize: 14,
+    marginTop: 16,
   },
   header: {
     fontSize: 20,

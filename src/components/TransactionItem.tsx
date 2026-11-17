@@ -2,84 +2,45 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
-import { iconSize } from '../theme/tokens';
 import { isLinkedCategory } from '../constants/systemCategories';
-import { parseIsoDate } from './DateField';
+import { categoryStyle } from '../utils/categoryStyle';
+import { money } from '../utils/money';
 import type { Transaction } from '../types';
 
-interface Props {
-  transaction: Transaction;
-}
-
-export default function TransactionItem({ transaction }: Props) {
+export default function TransactionItem({ transaction }: { transaction: Transaction }) {
   const { colors } = useTheme();
   const isIncome = transaction.type === 'INCOME';
-  const color = isIncome ? colors.green : colors.red;
-  const sign = isIncome ? '+' : '-';
-  const linked = isLinkedCategory(transaction.category);
+  const { icon, color } = categoryStyle(transaction.category);
 
   return (
     <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
-      <View style={styles.info}>
-        <View style={styles.categoryRow}>
-          <Text style={[styles.category, { color: colors.text }]}>{transaction.category}</Text>
-          {linked && (
-            <View style={[styles.linkedBadge, { backgroundColor: colors.bgSecondary }]}>
-              <Text style={[styles.linkedBadgeText, { color: colors.textSecondary }]}>
-                <Icon name="link-variant" size={iconSize.sm} color={colors.textSecondary} /> auto
-              </Text>
-            </View>
-          )}
-        </View>
-        <Text style={[styles.note, { color: colors.textTertiary }]}>{transaction.note || ''}</Text>
-        <Text style={[styles.date, { color: colors.textMuted }]}>{parseIsoDate(transaction.date.slice(0, 10)).toLocaleDateString()}</Text>
+      <View style={[styles.icon, { backgroundColor: color + '22' }]}>
+        <Icon name={icon} size={20} color={color} />
       </View>
-      <Text style={[styles.amount, { color }]}>
-        {sign}${Number(transaction.amount).toLocaleString()}
+      <View style={styles.info}>
+        <Text style={[styles.category, { color: colors.text }]} numberOfLines={1}>
+          {transaction.category}
+          {isLinkedCategory(transaction.category) ? '  · auto' : ''}
+        </Text>
+        {!!transaction.note && (
+          <Text style={[styles.note, { color: colors.textTertiary }]} numberOfLines={1}>
+            {transaction.note}
+          </Text>
+        )}
+      </View>
+      <Text style={[styles.amount, { color: isIncome ? colors.green : colors.text }]}>
+        {isIncome ? '+' : '−'}
+        {money(Number(transaction.amount))}
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-  },
-  info: {
-    flex: 1,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  category: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  linkedBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
-  },
-  linkedBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  note: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  date: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  amount: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, gap: 12 },
+  icon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  info: { flex: 1 },
+  category: { fontSize: 15, fontWeight: '500' },
+  note: { fontSize: 12, marginTop: 2 },
+  amount: { fontSize: 15, fontWeight: '600' },
 });

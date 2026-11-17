@@ -18,6 +18,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { flushQueue, saveTransaction } from '../services/transactionQueue';
 import { sortByFrequency } from '../utils/frequency';
+import { categoryStyle } from '../utils/categoryStyle';
+import { isLinkedCategory } from '../constants/systemCategories';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
 import DateField, { todayIso } from './DateField';
@@ -28,6 +31,12 @@ type TxType = 'INCOME' | 'EXPENSE';
 interface OpenOptions {
   category?: string;
   type?: TxType;
+  /** Prellenado (ticket escaneado). */
+  amount?: number;
+  note?: string;
+  date?: string;
+  /** Editar un movimiento existente. */
+  edit?: Transaction;
 }
 
 const QuickAddContext = createContext<{ open: (o?: OpenOptions) => void }>({ open: () => {} });
@@ -58,6 +67,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
   const [note, setNote] = useState('');
   const [date, setDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ['categories', 'all'],
@@ -80,16 +90,20 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
   );
   const chips = useMemo(() => sorted(type), [sorted, type]);
 
-
   const open = useCallback((o: OpenOptions = {}) => {
-    setType(o.type ?? 'EXPENSE');
-    setAmount('');
-    setCategory(o.category ?? '');
+    const tx = o.edit;
+    setEditing(tx ?? null);
+    setType(tx?.type ?? o.type ?? 'EXPENSE');
+    const amt = tx ? Number(tx.amount) : o.amount;
+    setAmount(amt ? String(amt) : '');
+    setCategory(tx?.category ?? o.category ?? '');
     setNewCategory(false);
     setShowAll(false);
-    setDetails(false);
-    setNote('');
-    setDate(todayIso());
+    const n = tx?.note ?? o.note ?? '';
+    const d = tx ? tx.date.slice(0, 10) : o.date ?? todayIso();
+    setNote(n);
+    setDate(d);
+    setDetails(!!n || d !== todayIso());
     setVisible(true);
   }, []);
 
@@ -120,6 +134,27 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
     }
     if (!name) return;
     setSaving(true);
+    if (editing) {
+      try {
+        await api.patch(`/transactions/${editing.id}`, {
+          amount: value,
+          category: name,
+          note: note.trim() || undefined,
+          type,
+          date,
+        });
+        for (const key of ['transactions', 'goals', 'forecast', 'debts', 'monthly-spending']) {
+          qc.invalidateQueries({ queryKey: [key] });
+        }
+        setVisible(false);
+        showToast('Movimiento actualizado');
+      } catch (err: any) {
+        Alert.alert('Error', err.response?.data?.message || 'No se pudo actualizar');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     try {
       const result = await saveTransaction(
         { amount: value, category: name, note: note.trim() || undefined, type, date },
@@ -141,8 +176,39 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const remove = () => {
+    if (!editing) return;
+    const linked = isLinkedCategory(editing.category);
+    Alert.alert(
+      'Eliminar movimiento',
+      linked
+        ? 'Se generó desde una deuda o meta: eliminarlo también revierte ese saldo.'
+        : `${editing.category} · $${Number(editing.amount).toLocaleString('es-MX')}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/transactions/${editing.id}`);
+              for (const key of ['transactions', 'goals', 'forecast', 'debts', 'monthly-spending']) {
+                qc.invalidateQueries({ queryKey: [key] });
+              }
+              setVisible(false);
+              showToast('Movimiento eliminado');
+            } catch (err: any) {
+              Alert.alert('Error', err.response?.data?.message || 'No se pudo eliminar');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const onChip = (name: string) => {
-    if (parseAmount(amount) > 0) {
+    // Al editar, tocar una categoría solo la elige; al registrar, con monto guarda de una vez.
+    if (!editing && parseAmount(amount) > 0) {
       save(name);
     } else {
       setCategory(name);
@@ -162,6 +228,9 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
           <Pressable style={[styles.overlay, { backgroundColor: colors.bgModalOverlay }]} onPress={() => setVisible(false)}>
             <Pressable style={[styles.sheet, { backgroundColor: colors.bg }]} onPress={() => {}}>
               <ScrollView keyboardShouldPersistTaps="handled">
+                {editing && (
+                  <Text style={[styles.title, { color: colors.text }]}>Editar movimiento</Text>
+                )}
                 <View style={styles.typeRow}>
                   {(['EXPENSE', 'INCOME'] as TxType[]).map(t => (
                     <TouchableOpacity
@@ -187,7 +256,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
                   <Text style={[styles.currency, { color: colors.textSecondary }]}>$</Text>
                   <TextInput
                     ref={amountRef}
-                    autoFocus
+                    autoFocus={!editing}
                     style={[styles.amount, { color: colors.text }]}
                     placeholder="0"
                     placeholderTextColor={colors.textMuted}
@@ -200,7 +269,11 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
                 </View>
 
                 <Text style={[styles.hint, { color: colors.textMuted }]}>
-                  {category ? `Categoría: ${category}` : 'Escribe el monto y toca una categoría para guardar'}
+                  {category
+                    ? `Categoría: ${category}`
+                    : editing
+                    ? 'Elige una categoría'
+                    : 'Escribe el monto y toca una categoría para guardar'}
                 </Text>
 
                 {newCategory ? (
@@ -227,7 +300,9 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
                           category === name && { backgroundColor: colors.greenLight, borderColor: colors.green },
                         ]}
                       >
-                        <Text style={{ color: category === name ? colors.green : colors.text }}>{name}</Text>
+                        <Text style={{ color: category === name ? colors.green : colors.text }}>
+                          <Icon name={categoryStyle(name).icon} size={14} color={categoryStyle(name).color} /> {name}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                     {!showAll && chips.length > VISIBLE_CHIPS && (
@@ -266,6 +341,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
                 )}
 
                 <Button title="Guardar" onPress={() => save()} loading={saving} disabled={!category.trim()} />
+                {editing && <Button title="Eliminar" onPress={remove} variant="ghost" />}
               </ScrollView>
             </Pressable>
           </Pressable>
@@ -277,6 +353,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  title: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
   overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '85%' },
   typeRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },

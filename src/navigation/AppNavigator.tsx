@@ -3,7 +3,7 @@ import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type NavigatorScreenParams } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import { iconSize, fontFamily } from '../theme/tokens';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -20,11 +20,11 @@ import { QuickAddProvider } from '../components/QuickAdd';
 export type MainTabParamList = {
   Dashboard: undefined;
   Movimientos: undefined;
+  Metas: undefined;
 };
 
 export type RootStackParamList = {
-  MainTabs: undefined;
-  Goals: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   GoalDetail: { goalId: string };
   DebtDetail: { debtId: string };
   Profile: undefined;
@@ -42,9 +42,6 @@ function HeaderIcons() {
 
   return (
     <View style={styles.headerIcons}>
-      <TouchableOpacity onPress={() => navigation.navigate('Goals')} style={styles.headerBtn}>
-        <Icon name="target" size={iconSize.md} color={colors.green} />
-      </TouchableOpacity>
       <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={styles.headerBtn}>
         <Icon name="account-circle-outline" size={iconSize.md} color={colors.text} />
       </TouchableOpacity>
@@ -54,6 +51,10 @@ function HeaderIcons() {
 
 function HomeIcon({ color }: { color: string }) {
   return <Icon name="home-variant" size={iconSize.md} color={color} />;
+}
+
+function GoalsIcon({ color }: { color: string }) {
+  return <Icon name="target" size={iconSize.md} color={color} />;
 }
 
 function CardsIcon({ color }: { color: string }) {
@@ -88,6 +89,14 @@ function MainTabs() {
           tabBarIcon: CardsIcon,
         }}
       />
+      <Tab.Screen
+        name="Metas"
+        component={GoalsScreen}
+        options={{
+          title: 'Metas',
+          tabBarIcon: GoalsIcon,
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -112,7 +121,6 @@ export default function AppNavigator() {
           headerRight: HeaderIcons,
         }}
       />
-      <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: 'Metas' }} />
       <Stack.Screen name="GoalDetail" component={GoalDetailScreen} options={{ title: 'Detalle de Meta' }} />
       <Stack.Screen name="DebtDetail" component={DebtDetailScreen} options={{ title: 'Detalle de Deuda' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />

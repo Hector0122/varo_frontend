@@ -6,12 +6,15 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  ScrollView,
+  Share,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { clearQueue } from '../services/transactionQueue';
 import { useToast } from '../hooks/useToast';
+import { todayIso } from '../utils/dates';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { logout } from '../services/auth';
@@ -33,6 +36,17 @@ export default function ProfileScreen() {
   const [showPinSetup, setShowPinSetup] = useState(false);
   const qc = useQueryClient();
   const { showToast } = useToast();
+
+  // ponytail: se comparte como texto (Share de RN), no como archivo .csv;
+  // Android limita el tamaño del intent (~500 KB), suficiente para años de gastos.
+  const handleExport = async () => {
+    try {
+      const res = await api.get('/transactions/export/csv', { responseType: 'text' });
+      await Share.share({ title: `varo-transacciones-${todayIso()}.csv`, message: res.data });
+    } catch (err: any) {
+      Alert.alert('Error', 'No se pudo exportar: ' + (err.message || 'Error desconocido'));
+    }
+  };
 
   const handleDeleteData = () => {
     Alert.alert(
@@ -92,7 +106,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.container}>
       <Text style={[styles.title, { color: colors.text }]}>Perfil</Text>
 
       <TouchableOpacity
@@ -132,6 +146,24 @@ export default function ProfileScreen() {
       >
         <Text style={[styles.optionText, { color: colors.text }]}>
           <Icon name="calendar-sync-outline" size={iconSize.sm} color={colors.text} /> Gastos fijos
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.option, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+        onPress={() => navigation.navigate('ImportStatement')}
+      >
+        <Text style={[styles.optionText, { color: colors.text }]}>
+          <Icon name="file-document-outline" size={iconSize.sm} color={colors.text} /> Importar estado de cuenta (PDF)
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.option, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
+        onPress={handleExport}
+      >
+        <Text style={[styles.optionText, { color: colors.text }]}>
+          <Icon name="tray-arrow-up" size={iconSize.sm} color={colors.text} /> Exportar movimientos (CSV)
         </Text>
       </TouchableOpacity>
 
@@ -215,13 +247,13 @@ export default function ProfileScreen() {
 
       <Button title="Borrar todos mis datos" onPress={handleDeleteData} variant="ghost" />
       <Button title="Cerrar sesión" onPress={handleLogout} variant="danger" />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: 24,
     justifyContent: 'center',
   },
