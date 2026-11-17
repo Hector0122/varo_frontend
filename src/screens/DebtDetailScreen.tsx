@@ -11,7 +11,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import DebtPaymentHistoryModal from '../components/DebtPaymentHistoryModal';
 import StatementDayPicker from '../components/StatementDayPicker';
-import DateField from '../components/DateField';
+import DateField, { todayIso } from '../components/DateField';
 import type { FinancialObjective } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -30,7 +30,7 @@ export default function DebtDetailScreen() {
   const [note, setNote] = useState('');
   const [installments, setInstallments] = useState('1');
   const [movementDate, setMovementDate] = useState(
-    new Date().toISOString().split('T')[0],
+    todayIso(),
   );
   const [historyVisible, setHistoryVisible] = useState(false);
   const [statementDay, setStatementDay] = useState<number | null>(null);
@@ -41,7 +41,7 @@ export default function DebtDetailScreen() {
   });
 
   const resetMovementDate = () =>
-    setMovementDate(new Date().toISOString().split('T')[0]);
+    setMovementDate(todayIso());
 
   const payMutation = useMutation({
     mutationFn: (amount: number) =>

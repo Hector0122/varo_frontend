@@ -13,6 +13,8 @@ import GoalDetailScreen from '../screens/GoalDetailScreen';
 import DebtDetailScreen from '../screens/DebtDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
+import RecurringScreen from '../screens/RecurringScreen';
+import { QuickAddProvider } from '../components/QuickAdd';
 
 export type MainTabParamList = {
   Dashboard: undefined;
@@ -26,6 +28,7 @@ export type RootStackParamList = {
   DebtDetail: { debtId: string };
   Profile: undefined;
   Categories: undefined;
+  Recurring: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -91,6 +94,7 @@ export default function AppNavigator() {
   const { colors } = useTheme();
 
   return (
+    <QuickAddProvider>
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: colors.bgCard },
@@ -111,7 +115,9 @@ export default function AppNavigator() {
       <Stack.Screen name="DebtDetail" component={DebtDetailScreen} options={{ title: 'Detalle de Deuda' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
       <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: 'Categorías' }} />
+      <Stack.Screen name="Recurring" component={RecurringScreen} options={{ title: 'Gastos fijos' }} />
     </Stack.Navigator>
+    </QuickAddProvider>
   );
 }
 

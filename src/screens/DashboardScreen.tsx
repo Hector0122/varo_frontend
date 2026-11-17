@@ -18,6 +18,8 @@ import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../hooks/useToast';
+import { useQuickAdd } from '../components/QuickAdd';
+import { pendingCount } from '../services/transactionQueue';
 import GoalWidget, { EmptyGoalWidget, type GoalWidgetData } from '../widget/GoalWidget';
 import type { Transaction, FinancialObjective, Forecast, MonthlySpendingEntry } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -27,6 +29,8 @@ export default function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const quickAdd = useQuickAdd();
+  const { data: pending } = useQuery({ queryKey: ['pending'], queryFn: pendingCount });
   const [refreshing, setRefreshing] = useState(false);
   const [debtModalVisible, setDebtModalVisible] = useState(false);
   const [debtName, setDebtName] = useState('');
@@ -146,6 +150,21 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
         showsVerticalScrollIndicator={false}
       >
+      <TouchableOpacity
+        style={[styles.quickAddBtn, { backgroundColor: colors.green }]}
+        onPress={() => quickAdd.open()}
+        activeOpacity={0.8}
+      >
+        <Icon name="plus" size={iconSize.md} color="#FFFFFF" />
+        <Text style={styles.quickAddText}>Registrar gasto</Text>
+      </TouchableOpacity>
+      {!!pending && (
+        <Text style={[styles.pending, { color: colors.textSecondary }]}>
+          <Icon name="cloud-upload-outline" size={iconSize.sm} color={colors.textSecondary} /> {pending}{' '}
+          {pending === 1 ? 'movimiento pendiente' : 'movimientos pendientes'} de enviar
+        </Text>
+      )}
+
       <Text style={[styles.header, { color: colors.text }]}>Resumen</Text>
       <View style={styles.row}>
         <SummaryCard title="Ingresos" amount={totalIncome} color={colors.green} icon="trending-up" compact />
@@ -305,6 +324,25 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 12,
+  },
+  quickAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 16,
+    marginBottom: 12,
+  },
+  quickAddText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  pending: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   header: {
     fontSize: 20,

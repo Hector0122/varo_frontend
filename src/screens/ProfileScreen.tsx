@@ -93,6 +93,18 @@ export default function ProfileScreen() {
         </Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={[
+          styles.option,
+          { backgroundColor: colors.bgCard, borderColor: colors.border },
+        ]}
+        onPress={() => navigation.navigate('Recurring')}
+      >
+        <Text style={[styles.optionText, { color: colors.text }]}>
+          <Icon name="calendar-sync-outline" size={iconSize.sm} color={colors.text} /> Gastos fijos
+        </Text>
+      </TouchableOpacity>
+
       {/* Bloqueo */}
       {!enabled ? (
         <TouchableOpacity

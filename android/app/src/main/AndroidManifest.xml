@@ -22,6 +22,14 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <!-- varo://gasto?categoria=X: atajo del ícono y widget de gasto rápido (QuickAdd.tsx). -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="varo" />
+        </intent-filter>
+        <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
       </activity>
 
       <receiver
@@ -35,6 +43,19 @@
         <meta-data
             android:name="android.appwidget.provider"
             android:resource="@xml/widgetprovider_goal" />
+      </receiver>
+
+      <receiver
+        android:name=".widget.GastoWidget"
+        android:exported="false"
+        android:label="@string/widget_gasto">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            <action android:name="com.varo_frontend.WIDGET_CLICK" />
+        </intent-filter>
+        <meta-data
+            android:name="android.appwidget.provider"
+            android:resource="@xml/widgetprovider_gasto" />
       </receiver>
 
       <service
