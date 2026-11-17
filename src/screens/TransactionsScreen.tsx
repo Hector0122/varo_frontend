@@ -29,7 +29,9 @@ import { api } from '../services/api';
 import { isLinkedCategory } from '../constants/systemCategories';
 import TransactionItem from '../components/TransactionItem';
 import TransactionForm from '../components/TransactionForm';
-import DateField from '../components/DateField';
+import DateField, { todayIso } from '../components/DateField';
+import { useQuickAdd } from '../components/QuickAdd';
+import { saveTransaction } from '../services/transactionQueue';
 import LoadingScreen from '../components/LoadingScreen';
 import ErrorMessage from '../components/ErrorMessage';
 import Button from '../components/Button';
@@ -60,7 +62,7 @@ export default function TransactionsScreen() {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const [modalVisible, setModalVisible] = useState(false);
+  const quickAdd = useQuickAdd();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [scanModalVisible, setScanModalVisible] = useState(false);
   const [fabMenuVisible, setFabMenuVisible] = useState(false);
@@ -102,44 +104,6 @@ export default function TransactionsScreen() {
       params.sortOrder = sortOrder;
       const res = await api.get('/transactions', { params });
       return res.data;
-    },
-  });
-
-  const createCategoryMutation = useMutation({
-    mutationFn: async (payload: { name: string; type: string }) => {
-      const res = await api.post('/categories', payload);
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (payload: Omit<Transaction, 'id' | 'userId'>) => {
-      const res = await api.post('/transactions', payload);
-      return res.data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['goals'] });
-      queryClient.invalidateQueries({ queryKey: ['forecast'] });
-      const exists = categories?.some(c => c.name === variables.category);
-      if (!exists) {
-        createCategoryMutation.mutate({
-          name: variables.category,
-          type: variables.type,
-        });
-      }
-      setModalVisible(false);
-      setEditModalVisible(false);
-      setShowCategoryInput(false);
-      reset();
-      setEditingTransaction(null);
-      showToast('Movimiento guardado');
-    },
-    onError: (err: any) => {
-      Alert.alert('Error', err.response?.data?.message || 'No se pudo guardar');
     },
   });
 
@@ -189,7 +153,7 @@ export default function TransactionsScreen() {
       category: '',
       note: '',
       type: 'EXPENSE',
-      date: new Date().toISOString().split('T')[0],
+      date: todayIso(),
     },
   });
 
@@ -210,16 +174,6 @@ export default function TransactionsScreen() {
       return res.data;
     },
   });
-
-  const onSubmit = (data: TransactionForm) => {
-    createMutation.mutate({
-      amount: Number(data.amount),
-      category: data.category,
-      note: data.note || undefined,
-      type: data.type,
-      date: data.date,
-    });
-  };
 
   const onEditSubmit = (data: TransactionForm) => {
     if (!editingTransaction) return;
@@ -290,7 +244,7 @@ export default function TransactionsScreen() {
         setScanAmount(String(data.amount ?? ''));
         setScanCategory(data.category ?? '');
         setScanNote(data.note ?? '');
-        setScanDate(data.date ?? new Date().toISOString().split('T')[0]);
+        setScanDate(data.date ?? todayIso());
         setScanType(data.type ?? 'EXPENSE');
         setScanModalVisible(true);
       } catch (err: any) {
@@ -312,13 +266,19 @@ export default function TransactionsScreen() {
       );
       return;
     }
-    createMutation.mutate({
-      amount: Number(scanAmount),
-      category: scanCategory,
-      note: scanNote || undefined,
-      type: scanType,
-      date: scanDate,
-    });
+    saveTransaction(
+      {
+        amount: Number(scanAmount),
+        category: scanCategory,
+        note: scanNote || undefined,
+        type: scanType,
+        date: scanDate,
+      },
+      queryClient,
+    ).then(
+      r => showToast(r === 'queued' ? 'Sin conexión: se enviará al volver la red' : 'Movimiento guardado'),
+      (err: any) => Alert.alert('Error', err.response?.data?.message || 'No se pudo guardar'),
+    );
     setScanModalVisible(false);
     setScanAmount('');
     setScanCategory('');
@@ -614,7 +574,10 @@ export default function TransactionsScreen() {
       {/* FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.green }]}
-        onPress={() => setFabMenuVisible(!fabMenuVisible)}
+        onPress={() => {
+          setFabMenuVisible(false);
+          quickAdd.open();
+        }}
         activeOpacity={0.8}
       >
         <Animated.Text style={[styles.fabText, { color: colors.bg }, fabIconStyle]}>
@@ -622,16 +585,17 @@ export default function TransactionsScreen() {
         </Animated.Text>
       </TouchableOpacity>
 
+      {/* Escanear ticket */}
+      <TouchableOpacity
+        style={[styles.scanFab, { backgroundColor: colors.bgCard, borderColor: colors.green }]}
+        onPress={() => setFabMenuVisible(!fabMenuVisible)}
+        activeOpacity={0.8}
+      >
+        <Icon name="camera-outline" size={iconSize.md} color={colors.green} />
+      </TouchableOpacity>
+
       {/* FAB Menu */}
       {[
-        {
-          icon: 'pencil-plus-outline',
-          label: 'Nuevo manual',
-          onPress: () => {
-            setFabMenuVisible(false);
-            setModalVisible(true);
-          },
-        },
         { icon: 'image-multiple-outline', label: 'Escanear de galería', onPress: () => pickImage(false) },
         { icon: 'camera', label: 'Escanear con cámara', onPress: () => pickImage(true) },
       ].map((item, i) => (
@@ -662,45 +626,6 @@ export default function TransactionsScreen() {
           </Text>
         </View>
       )}
-
-      {/* Create Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          style={styles.flexFill}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View
-            style={[
-              styles.modalOverlay,
-              { backgroundColor: colors.bgModalOverlay },
-            ]}
-          >
-            <ScrollView
-              style={[styles.modalContent, { backgroundColor: colors.bg }]}
-            >
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Nuevo movimiento
-              </Text>
-              <TransactionForm
-                control={control}
-                selectedType={selectedType}
-                categories={categories}
-                showCategoryInput={showCategoryInput}
-                setShowCategoryInput={setShowCategoryInput}
-                onSubmit={handleSubmit(onSubmit)}
-                onCancel={() => {
-                  setModalVisible(false);
-                  setEditModalVisible(false);
-                  setShowCategoryInput(false);
-                  reset();
-                  setEditingTransaction(null);
-                }}
-                isPending={createMutation.isPending || updateMutation.isPending}
-              />
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
       {/* Edit Modal */}
       <Modal visible={editModalVisible} animationType="slide" transparent>
@@ -735,13 +660,12 @@ export default function TransactionsScreen() {
                 setShowCategoryInput={setShowCategoryInput}
                 onSubmit={handleSubmit(onEditSubmit)}
                 onCancel={() => {
-                  setModalVisible(false);
                   setEditModalVisible(false);
                   setShowCategoryInput(false);
                   reset();
                   setEditingTransaction(null);
                 }}
-                isPending={createMutation.isPending || updateMutation.isPending}
+                isPending={updateMutation.isPending}
               />
             </ScrollView>
           </View>
@@ -847,7 +771,6 @@ export default function TransactionsScreen() {
               <Button
                 title="Confirmar y guardar"
                 onPress={confirmScanned}
-                loading={createMutation.isPending}
               />
               <View style={styles.cancelBtn}>
                 <Button
@@ -929,6 +852,19 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     textAlign: 'center',
+  },
+  scanFab: {
+    position: 'absolute',
+    right: 88,
+    bottom: 28,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    zIndex: 10,
   },
   fab: {
     position: 'absolute',

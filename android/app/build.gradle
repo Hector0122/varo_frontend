@@ -82,8 +82,10 @@ android {
         applicationId "com.varo_frontend"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // El workflow de release los pasa desde el tag y el número de run
+        // (versionCode tiene que crecer en cada APK para poder actualizar).
+        versionCode((findProperty('versionCode') ?: '1').toInteger())
+        versionName(findProperty('versionName') ?: '1.0')
     }
     signingConfigs {
         debug {
@@ -92,11 +94,13 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Keystore de release: lo escribe el workflow desde los secrets de
+        // GitHub; las contraseñas llegan por variables de entorno.
         release {
-            storeFile file('release.keystore')
-            storePassword 'android'
-            keyAlias 'varo-key'
-            keyPassword 'android'
+            storeFile file('varo-release.keystore')
+            storePassword System.getenv('VARO_KEYSTORE_PASSWORD')
+            keyAlias System.getenv('VARO_KEY_ALIAS') ?: 'varo'
+            keyPassword System.getenv('VARO_KEY_PASSWORD')
         }
     }
     buildTypes {
@@ -104,7 +108,7 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.release
+            signingConfig file('varo-release.keystore').exists() ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

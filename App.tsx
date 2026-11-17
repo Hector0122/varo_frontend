@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,12 +9,17 @@ import { ToastProvider } from './src/hooks/useToast';
 import AuthStack from './src/navigation/AuthStack';
 import AppNavigator from './src/navigation/AppNavigator';
 import LockScreen from './src/screens/LockScreen';
+import { checkForUpdate } from './src/services/updates';
 
 const queryClient = new QueryClient();
 
 function Root() {
   const { isAuthenticated, isLocked, unlockApp } = useAuth();
   const { mode } = useTheme();
+
+  useEffect(() => {
+    checkForUpdate();
+  }, []);
 
   if (isAuthenticated === null) {
     return null;

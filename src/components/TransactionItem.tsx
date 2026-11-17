@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../theme/ThemeContext';
 import { iconSize } from '../theme/tokens';
 import { isLinkedCategory } from '../constants/systemCategories';
+import { parseIsoDate } from './DateField';
 import type { Transaction } from '../types';
 
 interface Props {
@@ -31,7 +32,7 @@ export default function TransactionItem({ transaction }: Props) {
           )}
         </View>
         <Text style={[styles.note, { color: colors.textTertiary }]}>{transaction.note || ''}</Text>
-        <Text style={[styles.date, { color: colors.textMuted }]}>{new Date(transaction.date).toLocaleDateString()}</Text>
+        <Text style={[styles.date, { color: colors.textMuted }]}>{parseIsoDate(transaction.date.slice(0, 10)).toLocaleDateString()}</Text>
       </View>
       <Text style={[styles.amount, { color }]}>
         {sign}${Number(transaction.amount).toLocaleString()}

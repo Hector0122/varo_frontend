@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Al dejar presionado el ícono: abre el registro rápido (deep link en QuickAdd.tsx). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="gasto"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/atajo_gasto">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="varo://gasto"
+            android:targetPackage="com.varo_frontend"
+            android:targetClass="com.varo_frontend.MainActivity" />
+    </shortcut>
+</shortcuts>
