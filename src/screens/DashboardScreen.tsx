@@ -158,6 +158,11 @@ export default function DashboardScreen() {
         <Icon name="plus" size={iconSize.md} color="#FFFFFF" />
         <Text style={styles.quickAddText}>Registrar gasto</Text>
       </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate('ImportStatement')}>
+        <Text style={[styles.importLink, { color: colors.green }]}>
+          <Icon name="file-document-outline" size={iconSize.sm} color={colors.green} /> Importar estado de cuenta (PDF)
+        </Text>
+      </TouchableOpacity>
       {!!pending && (
         <Text style={[styles.pending, { color: colors.textSecondary }]}>
           <Icon name="cloud-upload-outline" size={iconSize.sm} color={colors.textSecondary} /> {pending}{' '}
@@ -338,6 +343,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
+  },
+  importLink: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   pending: {
     fontSize: 13,
