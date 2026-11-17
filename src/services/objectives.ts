@@ -15,6 +15,10 @@ export interface CreateObjectivePayload {
   savingAllocation?: number;
   dueDate?: string;
   statementDay?: number;
+  currentAmount?: number;
+  nextPayment?: number;
+  interestRate?: number;
+  balanceDate?: string;
 }
 
 export interface UpdateObjectivePayload {
@@ -24,6 +28,9 @@ export interface UpdateObjectivePayload {
   savingAllocation?: number;
   dueDate?: string | null;
   statementDay?: number;
+  nextPayment?: number;
+  interestRate?: number;
+  balanceDate?: string;
 }
 
 export interface CreateObjectiveEntryPayload {
@@ -32,6 +39,8 @@ export interface CreateObjectiveEntryPayload {
   note?: string;
   installments?: number;
   date?: string;
+  /** INCREASE: categoría del gasto (compra con tarjeta). */
+  category?: string;
 }
 
 export const objectivesApi = {

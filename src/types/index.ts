@@ -6,6 +6,8 @@ export interface Transaction {
   category: string;
   note?: string | null;
   date: string;
+  /** Si viene de una tarjeta o cuenta (cargo INCREASE = compra con tarjeta). */
+  objectiveEntry?: { objectiveId: string; type: string } | null;
 }
 
 export interface Goal {
@@ -105,6 +107,9 @@ export interface FinancialObjective {
   savingAllocation: number | null;
   dueDate?: string | null;
   statementDay: number | null;
+  nextPayment?: number | string | null;
+  interestRate?: number | null;
+  balanceDate?: string | null;
   createdAt: string;
 }
 

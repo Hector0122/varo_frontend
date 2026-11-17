@@ -8,8 +8,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { iconSize, fontFamily } from '../theme/tokens';
 import DashboardScreen from '../screens/DashboardScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
-import GoalsScreen from '../screens/GoalsScreen';
-import GoalDetailScreen from '../screens/GoalDetailScreen';
+import ForecastScreen from '../screens/ForecastScreen';
 import DebtDetailScreen from '../screens/DebtDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
@@ -20,12 +19,11 @@ import { QuickAddProvider } from '../components/QuickAdd';
 export type MainTabParamList = {
   Dashboard: undefined;
   Movimientos: undefined;
-  Metas: undefined;
+  Proyeccion: undefined;
 };
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-  GoalDetail: { goalId: string };
   DebtDetail: { debtId: string };
   Profile: undefined;
   Categories: undefined;
@@ -53,8 +51,8 @@ function HomeIcon({ color }: { color: string }) {
   return <Icon name="home-variant" size={iconSize.md} color={color} />;
 }
 
-function GoalsIcon({ color }: { color: string }) {
-  return <Icon name="target" size={iconSize.md} color={color} />;
+function ForecastIcon({ color }: { color: string }) {
+  return <Icon name="chart-line" size={iconSize.md} color={color} />;
 }
 
 function CardsIcon({ color }: { color: string }) {
@@ -90,11 +88,11 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="Metas"
-        component={GoalsScreen}
+        name="Proyeccion"
+        component={ForecastScreen}
         options={{
-          title: 'Metas',
-          tabBarIcon: GoalsIcon,
+          title: 'Proyección',
+          tabBarIcon: ForecastIcon,
         }}
       />
     </Tab.Navigator>
@@ -121,7 +119,6 @@ export default function AppNavigator() {
           headerRight: HeaderIcons,
         }}
       />
-      <Stack.Screen name="GoalDetail" component={GoalDetailScreen} options={{ title: 'Detalle de Meta' }} />
       <Stack.Screen name="DebtDetail" component={DebtDetailScreen} options={{ title: 'Detalle de Deuda' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
       <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: 'Categorías' }} />

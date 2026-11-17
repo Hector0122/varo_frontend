@@ -41,6 +41,7 @@ const FREQ_LABEL: Record<Recurring['frequency'], string> = {
   DAILY: 'Diario',
   WEEKLY: 'Semanal',
   BIWEEKLY: 'Quincenal',
+  BIMONTHLY: 'Bimestral',
   MONTHLY: 'Mensual',
   YEARLY: 'Anual',
 };
@@ -229,7 +230,7 @@ export default function RecurringScreen() {
               onChangeText={setNote}
             />
             <View style={styles.chips}>
-              {(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'YEARLY'] as Frequency[]).map(f => (
+              {(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'BIMONTHLY', 'YEARLY'] as Frequency[]).map(f => (
                 <TouchableOpacity key={f} style={chip(frequency === f)} onPress={() => setFrequency(f)}>
                   <Text style={{ color: colors.text }}>{FREQ_LABEL[f]}</Text>
                 </TouchableOpacity>
