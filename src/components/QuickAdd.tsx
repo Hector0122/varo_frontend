@@ -72,7 +72,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
   const [date, setDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
-  const [paidWith, setPaidWith] = useState<string | null>(null); // id de tarjeta o 'cash'
+  const [paidWith, setPaidWith] = useState<string | null>(null); // id de tarjeta, 'account' (débito de la cuenta principal) o 'cash'
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ['categories', 'all'],
@@ -88,6 +88,12 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
     queryKey: ['debts'],
     queryFn: () => objectivesApi.list('DEBT_PAYOFF'),
   });
+  // Misma llave que Proyección: la cuenta principal (p. ej. Mercado Pago).
+  const { data: accounts } = useQuery<FinancialObjective[]>({
+    queryKey: ['accounts'],
+    queryFn: () => objectivesApi.list('SAVING_GOAL'),
+  });
+  const account = accounts?.[0];
   // Con qué pagaste: se recuerda el último; si no hay, la tarjeta BBVA o la primera.
   useEffect(() => {
     AsyncStorage.getItem(PAID_WITH_KEY)
@@ -95,7 +101,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, []);
   const paidWithValid =
-    paidWith === 'cash' || cards?.some(c => c.id === paidWith)
+    paidWith === 'cash' || (paidWith === 'account' && !!account) || cards?.some(c => c.id === paidWith)
       ? (paidWith as string)
       : (cards?.find(c => /bbva/i.test(c.name)) ?? cards?.[0])?.id ?? 'cash';
   const choosePaidWith = (v: string) => {
@@ -184,7 +190,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
       const result = await saveTransaction(
         { amount: value, category: name, note: note.trim() || undefined, type, date },
         qc,
-        showPaidWith && paidWithValid !== 'cash' ? paidWithValid : undefined,
+        showPaidWith && paidWithValid !== 'cash' && paidWithValid !== 'account' ? paidWithValid : undefined,
       );
       if (result === 'saved' && !categories?.some(c => c.name === name)) {
         api.post('/categories', { name, type }).then(() => qc.invalidateQueries({ queryKey: ['categories'] }), () => {});
@@ -297,7 +303,11 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
                 {showPaidWith && (
                   <View style={styles.paidRow}>
                     <Text style={[styles.paidLabel, { color: colors.textSecondary }]}>Pagado con</Text>
-                    {[...cards!.map(c => ({ id: c.id, name: c.name })), { id: 'cash', name: 'Efectivo' }].map(o => (
+                    {[
+                      ...cards!.map(c => ({ id: c.id, name: c.name })),
+                      ...(account ? [{ id: 'account', name: account.name }] : []),
+                      { id: 'cash', name: 'Efectivo' },
+                    ].map(o => (
                       <TouchableOpacity
                         key={o.id}
                         onPress={() => choosePaidWith(o.id)}
