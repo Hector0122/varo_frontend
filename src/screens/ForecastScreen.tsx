@@ -82,7 +82,7 @@ export default function ForecastScreen() {
         t =>
           t.type === 'EXPENSE' &&
           t.date.slice(0, 10) >= since &&
-          !t.objectiveEntry &&
+          t.objectiveEntry?.type !== 'INCREASE' && // compras con tarjeta no salen de la cuenta
           !isLinkedCategory(t.category) &&
           !/recurrente/i.test(t.note ?? ''),
       )
