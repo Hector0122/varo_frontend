@@ -29,6 +29,8 @@ La mayoría de apps de finanzas piden que captures cada gasto a mano, y eso hace
 - 🧾 Escaneo de tickets con IA (Groq Vision)
 - 🎯 Metas de ahorro con asignación porcentual y forecast de cumplimiento
 - 💳 Deudas con historial de pagos e incrementos
+- 👛 "Pagado con" en cada gasto (tarjeta, saldo de la cuenta o efectivo), editable después: la deuda o el saldo se ajustan solos
+- 📈 Proyección del saldo de la cuenta: fijos, pagos de tarjeta en su vencimiento y gasto variable (lo pagado con la cuenta o en efectivo)
 - 🔒 Bloqueo de app (PIN / biometría) + JWT con refresh tokens
 - 📤 Exportar movimientos a CSV
 
