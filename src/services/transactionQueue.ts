@@ -4,8 +4,8 @@ import { api } from './api';
 import type { Transaction } from '../types';
 
 export type NewTransaction = Omit<Transaction, 'id' | 'userId' | 'objectiveEntry'>;
-/** Con debtId se registra como compra con esa tarjeta (sube su deuda). */
-type QueueItem = NewTransaction & { debtId?: string };
+/** Con debtId: compra con esa tarjeta (sube su deuda). Con accountId: pago desde la cuenta (baja su saldo). */
+type QueueItem = NewTransaction & { debtId?: string; accountId?: string };
 
 const QUEUE_KEY = 'pendingTransactions';
 let flushing = false;
@@ -23,15 +23,15 @@ export const clearQueue = () => AsyncStorage.removeItem(QUEUE_KEY);
 export const pendingCount = async () => (await readQueue()).length;
 
 function refresh(qc: QueryClient) {
-  for (const key of ['transactions', 'debts', 'categories', 'monthly-spending', 'pending']) {
+  for (const key of ['transactions', 'debts', 'accounts', 'categories', 'monthly-spending', 'pending']) {
     qc.invalidateQueries({ queryKey: [key] });
   }
 }
 
-function post({ debtId, ...tx }: QueueItem) {
-  return debtId
-    ? api.post(`/objectives/${debtId}/entries`, { ...tx, type: 'INCREASE' })
-    : api.post('/transactions', tx);
+function post({ debtId, accountId, ...tx }: QueueItem) {
+  if (debtId) return api.post(`/objectives/${debtId}/entries`, { ...tx, type: 'INCREASE' });
+  if (accountId) return api.post(`/objectives/${accountId}/entries`, { ...tx, type: 'WITHDRAW' });
+  return api.post('/transactions', tx);
 }
 
 /** Sin respuesta del servidor = sin red (o Railway caído): vale la pena reintentar. */
@@ -45,8 +45,9 @@ export async function saveTransaction(
   tx: NewTransaction,
   qc: QueryClient,
   debtId?: string,
+  accountId?: string,
 ): Promise<'saved' | 'queued'> {
-  const item: QueueItem = debtId ? { ...tx, debtId } : tx;
+  const item: QueueItem = { ...tx, ...(debtId && { debtId }), ...(accountId && { accountId }) };
   try {
     await post(item);
     refresh(qc);

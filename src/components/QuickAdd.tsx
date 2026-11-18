@@ -73,6 +73,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [paidWith, setPaidWith] = useState<string | null>(null); // id de tarjeta, 'account' (débito de la cuenta principal) o 'cash'
+  const [editPaidWith, setEditPaidWith] = useState('cash'); // al editar: no pisa el último elegido para gastos nuevos
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ['categories', 'all'],
@@ -105,10 +106,15 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
       ? (paidWith as string)
       : (cards?.find(c => /bbva/i.test(c.name)) ?? cards?.[0])?.id ?? 'cash';
   const choosePaidWith = (v: string) => {
+    if (editing) return setEditPaidWith(v);
     setPaidWith(v);
     AsyncStorage.setItem(PAID_WITH_KEY, v).catch(() => {});
   };
-  const showPaidWith = !editing && type === 'EXPENSE' && !!cards?.length;
+  // Pagos de deuda y abonos a metas se cambian desde su pantalla, no aquí.
+  const editableEntry = !editing?.objectiveEntry || ['INCREASE', 'WITHDRAW'].includes(editing.objectiveEntry.type);
+  const showPaidWith = type === 'EXPENSE' && !!cards?.length && (!editing || editableEntry);
+  const selectedPaidWith = !editing ? paidWithValid : editPaidWith === account?.id ? 'account' : editPaidWith;
+  const paidWithId = (v: string) => (v === 'cash' ? null : v === 'account' ? account?.id ?? null : v);
 
   const sorted = useCallback(
     (t: TxType) =>
@@ -124,6 +130,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
   const open = useCallback((o: OpenOptions = {}) => {
     const tx = o.edit;
     setEditing(tx ?? null);
+    setEditPaidWith(tx?.objectiveEntry?.objectiveId ?? 'cash');
     setType(tx?.type ?? o.type ?? 'EXPENSE');
     const amt = tx ? Number(tx.amount) : o.amount;
     setAmount(amt ? String(amt) : '');
@@ -173,8 +180,12 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
           note: note.trim() || undefined,
           type,
           date,
+          ...(showPaidWith &&
+            paidWithId(editPaidWith) !== (editing.objectiveEntry?.objectiveId ?? null) && {
+              paidWith: paidWithId(editPaidWith),
+            }),
         });
-        for (const key of ['transactions', 'debts', 'monthly-spending']) {
+        for (const key of ['transactions', 'debts', 'accounts', 'monthly-spending']) {
           qc.invalidateQueries({ queryKey: [key] });
         }
         setVisible(false);
@@ -191,6 +202,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
         { amount: value, category: name, note: note.trim() || undefined, type, date },
         qc,
         showPaidWith && paidWithValid !== 'cash' && paidWithValid !== 'account' ? paidWithValid : undefined,
+        showPaidWith && paidWithValid === 'account' ? account?.id : undefined,
       );
       if (result === 'saved' && !categories?.some(c => c.name === name)) {
         api.post('/categories', { name, type }).then(() => qc.invalidateQueries({ queryKey: ['categories'] }), () => {});
@@ -224,7 +236,7 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
           onPress: async () => {
             try {
               await api.delete(`/transactions/${editing.id}`);
-              for (const key of ['transactions', 'goals', 'forecast', 'debts', 'monthly-spending']) {
+              for (const key of ['transactions', 'goals', 'forecast', 'debts', 'accounts', 'monthly-spending']) {
                 qc.invalidateQueries({ queryKey: [key] });
               }
               setVisible(false);
@@ -314,10 +326,10 @@ export function QuickAddProvider({ children }: { children: React.ReactNode }) {
                         style={[
                           styles.paidChip,
                           { borderColor: colors.border },
-                          paidWithValid === o.id && { backgroundColor: colors.greenLight, borderColor: colors.green },
+                          selectedPaidWith === o.id && { backgroundColor: colors.greenLight, borderColor: colors.green },
                         ]}
                       >
-                        <Text style={{ color: paidWithValid === o.id ? colors.green : colors.textSecondary }}>
+                        <Text style={{ color: selectedPaidWith === o.id ? colors.green : colors.textSecondary }}>
                           {o.name}
                         </Text>
                       </TouchableOpacity>
