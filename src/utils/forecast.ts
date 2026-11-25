@@ -42,7 +42,30 @@ export interface ForecastWeek {
   endBalance: number;
 }
 
-const addDays = (iso: string, n: number) => {
+/**
+ * Gasto semanal que sale de la cuenta (efectivo o débito de la cuenta, no tarjeta),
+ * sin fijos ni transferencias, desde `since`.
+ */
+export function weeklyCashSpending(
+  transactions: { type: string; date: string; amount: number | string; category: string; note?: string | null; objectiveEntry?: { type: string } | null }[],
+  since: string,
+  days: number,
+  isLinked: (category: string) => boolean,
+) {
+  const total = transactions
+    .filter(
+      t =>
+        t.type === 'EXPENSE' &&
+        t.date.slice(0, 10) >= since &&
+        t.objectiveEntry?.type !== 'INCREASE' && // compras con tarjeta no salen de la cuenta
+        !isLinked(t.category) &&
+        !/recurrente/i.test(t.note ?? ''),
+    )
+    .reduce((s, t) => s + Number(t.amount), 0);
+  return (total / days) * 7;
+}
+
+const addDays =(iso: string, n: number) => {
   const d = parseIsoDate(iso);
   d.setDate(d.getDate() + n);
   return toIsoDate(d);
@@ -97,7 +120,8 @@ export function buildForecast(input: ForecastInput) {
   const balances = new Map<string, number>();
 
   for (let day = addDays(input.balanceDate, 1); day <= end; day = addDays(day, 1)) {
-    balance += (byDay.get(day) ?? 0) - daily;
+    // Hasta hoy lo gastado ya está anotado (y lo pagado con la cuenta ya bajó el saldo): el promedio solo proyecta el futuro.
+    balance += (byDay.get(day) ?? 0) - (day > input.today ? daily : 0);
     if (balance > 0) balance += balance * rate;
     balances.set(day, balance);
     if (day === input.today) todayBalance = balance;

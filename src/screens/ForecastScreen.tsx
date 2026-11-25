@@ -20,7 +20,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { iconSize } from '../theme/tokens';
 import Button from '../components/Button';
 import { isLinkedCategory } from '../constants/systemCategories';
-import { buildForecast, type ForecastRecurring } from '../utils/forecast';
+import { buildForecast, weeklyCashSpending, type ForecastRecurring } from '../utils/forecast';
 import { parseIsoDate, todayIso, toIsoDate } from '../utils/dates';
 import { money } from '../utils/money';
 import type { FinancialObjective, MonthlySpendingEntry, Transaction } from '../types';
@@ -77,17 +77,7 @@ export default function ForecastScreen() {
     const since = [toIsoDate(d), account.createdAt.slice(0, 10)].sort()[1];
     const days = (parseIsoDate(today).getTime() - parseIsoDate(since).getTime()) / 86400000;
     if (days < 7) return { weekly: DEFAULT_VARIABLE, estimated: true };
-    const total = (transactions.data ?? [])
-      .filter(
-        t =>
-          t.type === 'EXPENSE' &&
-          t.date.slice(0, 10) >= since &&
-          t.objectiveEntry?.type !== 'INCREASE' && // compras con tarjeta no salen de la cuenta
-          !isLinkedCategory(t.category) &&
-          !/recurrente/i.test(t.note ?? ''),
-      )
-      .reduce((s, t) => s + Number(t.amount), 0);
-    return { weekly: (total / days) * 7, estimated: false };
+    return { weekly: weeklyCashSpending(transactions.data ?? [], since, days, isLinkedCategory), estimated: false };
   }, [account, transactions.data, today]);
 
   const forecast = useMemo(() => {
@@ -242,7 +232,7 @@ export default function ForecastScreen() {
             </View>
             <Text style={[styles.note, { color: colors.textMuted }]}>
               Incluye gasto variable de {money(Math.round(variable.weekly))}/semana
-              {variable.estimated ? ' (estimado inicial)' : ' (tu promedio en efectivo)'} y rendimiento del{' '}
+              {variable.estimated ? ' (estimado inicial)' : ' (tu promedio en efectivo y débito)'} y rendimiento del{' '}
               {account.interestRate ?? 0}% anual.
             </Text>
 
